@@ -1,0 +1,897 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Deck Thing – Tasten</title>
+<link rel="stylesheet" href="/fonts/lucide.css">
+<script src="/i18n.js"></script>
+<style>
+  /* Schrift liegt bei der App (offline), nicht bei Google Fonts */
+  @font-face { font-family: "Figtree"; font-weight: 400 500; src: url("/fonts/Figtree-Medium.ttf"); }
+  @font-face { font-family: "Figtree"; font-weight: 600; src: url("/fonts/Figtree-SemiBold.ttf"); }
+  @font-face { font-family: "Figtree"; font-weight: 700; src: url("/fonts/Figtree-Bold.ttf"); }
+  @font-face { font-family: "Figtree"; font-weight: 800; src: url("/fonts/Figtree-ExtraBold.ttf"); }
+  :root {
+    --ink: #121212; --panel: #181818; --surface: #282828; --line: #3a3a3a;
+    --text: #ffffff; --muted: #b3b3b3; --green: #1ed760; --red: #f3727f;
+    --font: "Figtree", "Segoe UI", system-ui, sans-serif;
+    --emoji: "Segoe UI Emoji", "Apple Color Emoji", "Noto Color Emoji", sans-serif;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; }
+  body { background: var(--ink); color: var(--text); font: 15px/1.5 var(--font); padding: 28px 32px 40px; }
+  body.embedded { padding: 32px 40px 40px; }
+  body.embedded header, body.embedded .layout { margin-left: 0; }
+  .browse { flex: none; }
+  button, input, select { font: inherit; color: inherit; }
+  :focus-visible { outline: 2px solid var(--green); outline-offset: 2px; }
+  [hidden] { display: none !important; }
+
+  header { display: flex; justify-content: space-between; align-items: center; gap: 16px; flex-wrap: wrap; max-width: 1180px; margin: 0 auto 20px; }
+  header h1 { margin: 0; font-size: 26px; font-weight: 800; }
+  header p { margin: 2px 0 0; color: var(--muted); }
+  .actions { display: flex; gap: 10px; }
+
+  .layout { display: grid; grid-template-columns: minmax(0, 1.25fr) minmax(340px, 1fr); gap: 28px; max-width: 1180px; margin: 0 auto; align-items: start; }
+  @media (max-width: 900px) { .layout { grid-template-columns: 1fr; } }
+
+  .btn { height: 42px; padding: 0 20px; border-radius: 999px; border: 0; cursor: pointer; font-weight: 700; }
+  .btn.primary { background: var(--green); color: #000; }
+  .btn.primary:disabled { background: #2f5c3e; color: #0b0b0b; cursor: default; }
+  .btn.ghost { background: transparent; color: var(--muted); border: 1px solid #535353; }
+  .btn.ghost:hover { color: var(--text); border-color: var(--muted); }
+  .btn.danger { background: transparent; color: var(--red); border: 1px solid #5a2a2f; }
+  .btn.small { height: 34px; padding: 0 14px; font-size: 13px; }
+
+  /* Gerätevorschau im Seitenverhältnis des Displays */
+  .device { background: #0b0b0b; border: 1px solid #2a2a2a; border-radius: 14px; padding: 18px; position: sticky; top: 16px; }
+  .device .page { margin-bottom: 12px; }
+  .device .page input { background: transparent; border: 1px solid transparent; border-radius: 8px; font-size: 20px; font-weight: 700; padding: 4px 8px; width: 100%; }
+  .device .page input:hover, .device .page input:focus { border-color: #535353; outline: none; }
+  .deck-tools { display: flex; justify-content: space-between; align-items: center; gap: 10px; flex-wrap: wrap; margin-bottom: 12px; }
+  .deck-tools .segmented { margin: 0; }
+  .deck-tools .count { display: flex; align-items: center; gap: 8px; color: var(--muted); font-size: 13px; }
+  .deck-tools .btn:disabled { opacity: .4; cursor: default; }
+  .deck-scroll { overflow: auto; scrollbar-width: thin; scrollbar-color: #535353 transparent; padding: 2px 2px 8px; }
+  .deck-scroll.h { display: flex; gap: 12px; scroll-snap-type: x mandatory; }
+  .deck-scroll.v { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; scroll-snap-type: y mandatory; }
+  .deck-scroll.v .slot { scroll-snap-align: start; }
+  .pagebox { flex: 0 0 100%; display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; scroll-snap-align: start; }
+  .slot {
+    aspect-ratio: 172 / 150; border-radius: 14px; background: var(--surface); border: 2px solid transparent;
+    display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 8px; cursor: pointer;
+    user-select: none; min-width: 0; padding: 6px;
+  }
+  .slot .ico { font-size: 38px; line-height: 1; height: 42px; display: grid; place-items: center; }
+  .slot .ico.emoji { font-family: var(--emoji); font-size: 36px; max-width: 100%; overflow: hidden; white-space: nowrap; }
+  .slot .ico img { width: 42px; height: 42px; object-fit: contain; }
+  .slot .ico img.rounded { object-fit: cover; border-radius: 22%; }
+  .slot .ico img.circle { object-fit: cover; border-radius: 50%; }
+  .slot.fill { background-size: cover; background-position: center; justify-content: flex-end; padding-bottom: 10px; }
+  .slot.fill .lbl { text-shadow: 0 1px 3px rgba(0,0,0,.6); }
+  .slot .lbl { font-weight: 500; font-size: 14px; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .slot.empty { background: transparent; border: 2px dashed #333; color: #555; }
+  .slot.empty .ico { font-size: 28px; }
+  .slot.selected { border: 2px solid var(--text); }
+  .slot.drop { border-color: var(--green); }
+  .device small { display: block; color: var(--muted); margin-top: 12px; }
+
+  /* Editor */
+  .editor { background: var(--panel); border: 1px solid #2a2a2a; border-radius: 14px; padding: 20px 22px; }
+  .editor h2 { margin: 0 0 14px; font-size: 18px; }
+  label.row { display: block; margin-bottom: 14px; }
+  label.row > span, .row-title { display: block; color: var(--muted); font-size: 13px; margin-bottom: 6px; }
+  input[type=text], select { width: 100%; height: 42px; border-radius: 8px; border: 1px solid #535353; background: var(--ink); padding: 0 12px; }
+  input[type=text]:focus, select:focus { border-color: var(--text); outline: none; }
+  .segmented { display: flex; gap: 4px; background: var(--ink); border-radius: 999px; padding: 4px; margin-bottom: 10px; width: fit-content; max-width: 100%; flex-wrap: wrap; }
+  .segmented button { border: 0; background: transparent; color: var(--muted); padding: 6px 16px; border-radius: 999px; cursor: pointer; font-weight: 600; }
+  .segmented button.on { background: var(--surface); color: var(--text); }
+  .pick { display: grid; grid-template-columns: repeat(auto-fill, minmax(40px, 1fr)); gap: 6px; margin-bottom: 14px; }
+  .pick button { aspect-ratio: 1; border-radius: 8px; border: 1px solid transparent; background: var(--ink); cursor: pointer; font-size: 22px; display: grid; place-items: center; padding: 0; }
+  .pick.emojis button { font-family: var(--emoji); }
+  .pick button:hover { border-color: #535353; }
+  .pick button.on { border-color: var(--text); background: var(--surface); }
+  .pick.freekeys { grid-template-columns: repeat(6, minmax(0, 1fr)); }
+  .pick.freekeys button { aspect-ratio: auto; height: 40px; font-size: 14px; font-weight: 700; }
+  .pick.freekeys button.used { color: #6a6a6a; }
+  .pick.freekeys button.used.on { color: var(--text); }
+  .emoji-input { font-family: var(--emoji), var(--font) !important; font-size: 22px !important; }
+  .image-pick { display: flex; gap: 14px; align-items: center; margin-bottom: 14px; }
+  .image-pick .thumb { width: 64px; height: 64px; border-radius: 10px; background: var(--surface); display: grid; place-items: center; color: #555; font-size: 26px; overflow: hidden; flex: none; }
+  .image-pick .thumb img { width: 48px; height: 48px; object-fit: contain; }
+  .colors { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; margin-bottom: 14px; }
+  .colors button { width: 30px; height: 30px; border-radius: 50%; border: 2px solid #121212; cursor: pointer; box-shadow: 0 0 0 1px #3a3a3a; }
+  .colors button.on { box-shadow: 0 0 0 2px var(--text); }
+  /* eigene Farbe: Regenbogen-Knopf, zeigt die gewählte Farbe, sobald sie keine der Vorgaben ist */
+  .colors button.custom { position: relative; background: conic-gradient(#f55, #fd5, #5f7, #5df, #66f, #f5d, #f55); display: grid; place-items: center; }
+  .colors button.custom i { font-size: 15px; color: #fff; filter: drop-shadow(0 0 2px rgba(0,0,0,.8)); }
+  .colors button.custom.set { background: var(--swatch); }
+  .colors button.custom.set i { display: none; }
+
+  .cpick { position: fixed; z-index: 30; width: 244px; padding: 14px; border-radius: 12px; background: var(--surface);
+    box-shadow: 0 16px 40px rgba(0,0,0,.55), 0 0 0 1px #3a3a3a; animation: pop .12s ease-out; }
+  .cp-sv { position: relative; height: 150px; border-radius: 8px; cursor: crosshair; touch-action: none;
+    background: linear-gradient(to top, #000, transparent), linear-gradient(to right, #fff, var(--hue)); }
+  .cp-hue { position: relative; height: 14px; margin-top: 12px; border-radius: 999px; cursor: pointer; touch-action: none;
+    background: linear-gradient(to right, #f00, #ff0, #0f0, #0ff, #00f, #f0f, #f00); }
+  .cp-knob { position: absolute; width: 16px; height: 16px; margin: -8px 0 0 -8px; border-radius: 50%; pointer-events: none;
+    border: 2px solid #fff; box-shadow: 0 0 0 1px rgba(0,0,0,.5), 0 1px 4px rgba(0,0,0,.5); }
+  .cp-hue .cp-knob { top: 50%; }
+  .cp-row { display: flex; gap: 10px; align-items: center; margin-top: 14px; }
+  .cp-preview { width: 34px; height: 34px; border-radius: 8px; flex: none; box-shadow: inset 0 0 0 1px rgba(255,255,255,.15); }
+  .cp-row input { flex: 1; min-width: 0; height: 34px; border-radius: 8px; border: 1px solid #535353; background: var(--panel);
+    color: var(--text); padding: 0 10px; font: 14px Consolas, monospace; text-transform: uppercase; }
+  .cp-row input:focus { outline: none; border-color: var(--text); }
+  .cp-row input.invalid { border-color: var(--red); }
+  .cp-recent { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 12px; }
+  .cp-recent:empty { display: none; }
+  .cp-recent button { width: 22px; height: 22px; border-radius: 6px; border: 0; cursor: pointer; box-shadow: inset 0 0 0 1px rgba(255,255,255,.15); }
+  .combo { display: flex; gap: 8px; }
+  .combo input { flex: 1; min-width: 0; font-family: Consolas, "Cascadia Mono", monospace; }
+  .combo .btn.recording { background: var(--red); color: #000; border-color: var(--red); }
+  .hint { font-size: 13px; color: var(--muted); margin: -8px 0 14px; }
+  .editor-actions { display: flex; gap: 10px; justify-content: space-between; margin-top: 18px; flex-wrap: wrap; }
+  hr { border: 0; border-top: 1px solid #2a2a2a; margin: 18px 0; }
+
+  .modal-backdrop { position: fixed; inset: 0; background: rgba(0,0,0,.6); display: grid; place-items: center; padding: 16px; z-index: 10; animation: fade .12s ease-out; }
+  .modal { background: var(--surface); border-radius: 14px; padding: 24px; width: min(420px, 100%); box-shadow: 0 16px 48px rgba(0,0,0,.5); animation: pop .14s ease-out; }
+  .modal h3 { margin: 0 0 8px; font-size: 20px; font-weight: 800; }
+  .modal p { margin: 0 0 22px; color: var(--muted); }
+  .modal .buttons { display: flex; justify-content: flex-end; gap: 10px; flex-wrap: wrap; }
+  .btn.danger-fill { background: var(--red); color: #000; }
+  @keyframes fade { from { opacity: 0; } }
+  @keyframes pop { from { transform: scale(.96); opacity: 0; } }
+  .toast { position: fixed; left: 50%; bottom: 28px; transform: translateX(-50%); background: var(--text); color: #000; font-weight: 700; padding: 10px 16px; border-radius: 8px; opacity: 0; transition: opacity .15s; pointer-events: none; max-width: calc(100% - 32px); }
+  .toast.show { opacity: 1; }
+  .toast.err { background: var(--red); }
+</style>
+</head>
+<body>
+
+<header>
+  <div>
+    <h1>Tasten</h1>
+    <p data-i18n-html>Feld anklicken zum Bearbeiten, Felder ziehen zum Tauschen. „Speichern“ schickt die Belegung sofort ans Gerät.</p>
+  </div>
+  <div class="actions">
+    <button class="btn ghost" id="reload">Verwerfen</button>
+    <button class="btn primary" id="save" disabled>Speichern</button>
+  </div>
+</header>
+
+<div class="layout">
+  <div>
+    <div class="device">
+      <div class="page"><input id="pageName" aria-label="Name der Seite" maxlength="40"></div>
+      <div class="deck-tools">
+        <div class="segmented" id="scrollMode" title="Wohin weitere Tasten kommen, wenn 8 nicht reichen">
+          <button data-scroll="horizontal">→ Seiten nach rechts</button>
+          <button data-scroll="vertical">↓ Reihen nach unten</button>
+        </div>
+        <div class="count">
+          <span id="keyCount"></span>
+          <button class="btn ghost small" id="removeBlock">−</button>
+          <button class="btn ghost small" id="addBlock">+ Seite</button>
+        </div>
+      </div>
+      <div class="deck-scroll h" id="grid"></div>
+      <small>So sieht die Tastenseite auf dem Gerät aus – sichtbar sind 4 × 2, der Rest wird gewischt.</small>
+    </div>
+  </div>
+
+  <div class="editor">
+    <h2 id="editorTitle">Taste 1</h2>
+
+    <div id="emptyHint" hidden>
+      <p class="hint" style="margin:0 0 14px">Dieses Feld ist leer.</p>
+      <button class="btn primary" id="create">Taste anlegen</button>
+    </div>
+
+    <div id="form">
+      <label class="row"><span>Name</span><input type="text" id="label" maxlength="24" placeholder="z. B. Discord stumm"></label>
+
+      <span class="row-title">Symbol</span>
+      <div class="segmented" id="symbolType">
+        <button data-symbol="icon">Symbol</button>
+        <button data-symbol="emoji">Emoji</button>
+        <button data-symbol="image">Eigenes Bild</button>
+      </div>
+      <div data-symbol-panel="icon"><div class="pick" id="icons"></div></div>
+      <div data-symbol-panel="emoji" hidden>
+        <label class="row"><input type="text" id="emoji" class="emoji-input" maxlength="16" placeholder="Emoji einfügen"></label>
+        <p class="hint" data-i18n-html>Mit <b>Win + .</b> öffnet Windows die Emoji-Auswahl.</p>
+        <div class="pick emojis" id="emojis"></div>
+      </div>
+      <div data-symbol-panel="image" hidden>
+        <div class="image-pick">
+          <div class="thumb" id="imageThumb"><i class="icon-image"></i></div>
+          <div>
+            <button class="btn ghost small" id="imageButton">Bild auswählen …</button>
+            <input type="file" id="imageFile" accept="image/png,image/jpeg,image/webp,image/gif,image/x-icon" hidden>
+            <p class="hint" style="margin:6px 0 0">PNG, JPG, WebP, GIF oder ICO.</p>
+          </div>
+        </div>
+        <span class="row-title">Größe</span>
+        <div class="segmented" id="imageFill">
+          <button data-fill="0">Als Symbol</button>
+          <button data-fill="1">Ganze Taste</button>
+        </div>
+        <div id="imageShapeRow">
+          <span class="row-title">Form</span>
+          <div class="segmented" id="imageShape">
+            <button data-shape="square">Original</button>
+            <button data-shape="rounded">Abgerundet</button>
+            <button data-shape="circle">Rund</button>
+          </div>
+        </div>
+      </div>
+
+      <div id="symbolColorRow">
+        <span class="row-title">Symbolfarbe</span>
+        <div class="colors" id="symbolColors"></div>
+      </div>
+      <span class="row-title">Schriftfarbe</span>
+      <div class="colors" id="textColors"></div>
+
+      <hr>
+
+      <label class="row"><span>Aktion</span>
+        <select id="actionType">
+          <option value="free">Freie Taste (F13–F24)</option>
+          <option value="key">Tastenkombination</option>
+          <option value="launch">Programm starten</option>
+          <option value="script">Skript ausführen</option>
+          <option value="url">Link öffnen</option>
+          <option value="media">Medien</option>
+        </select>
+      </label>
+
+      <div data-for="free" hidden>
+        <div class="pick freekeys" id="freeKeys"></div>
+        <p class="hint">Diese Tasten kennt Windows, auf keiner Tastatur gibt es sie – sie kommen also nichts anderem in die Quere. Im Programm (OBS, Discord, …) ins Feld fürs Tastenkürzel klicken und dann die Taste am Gerät drücken. Grau = schon vergeben.</p>
+      </div>
+      <div data-for="key" hidden>
+        <span class="row-title">Kombination</span>
+        <div class="combo" style="margin-bottom:14px">
+          <input type="text" id="keys" placeholder="z. B. ctrl+shift+m oder f13" spellcheck="false">
+          <button class="btn small ghost" id="record">Aufnehmen</button>
+        </div>
+        <p class="hint">„Aufnehmen“ drücken, dann die Tasten. Möglich sind ctrl, shift, alt, win, a–z, 0–9, f1–f24, esc, enter, tab, space, Pfeile, volumemute …</p>
+      </div>
+      <div data-for="launch" hidden>
+        <span class="row-title">Programm (Pfad zur .exe oder Name)</span>
+        <div class="combo" style="margin-bottom:14px">
+          <input type="text" id="path" placeholder="C:\Program Files\OBS Studio\bin\64bit\obs64.exe" spellcheck="false">
+          <button class="btn small ghost browse" data-browse="program" data-target="path" hidden>Durchsuchen …</button>
+        </div>
+        <label class="row"><span>Parameter (optional)</span><input type="text" id="args" placeholder="--startrecording" spellcheck="false"></label>
+      </div>
+      <div data-for="script" hidden>
+        <span class="row-title">Skript (.ps1, .bat, .cmd oder .py)</span>
+        <div class="combo" style="margin-bottom:14px">
+          <input type="text" id="script" placeholder="C:\Skripte\licht-an.ps1" spellcheck="false">
+          <button class="btn small ghost browse" data-browse="script" data-target="script" hidden>Durchsuchen …</button>
+        </div>
+      </div>
+      <div data-for="url" hidden>
+        <label class="row"><span>Link</span><input type="text" id="url" placeholder="https://…" spellcheck="false"></label>
+      </div>
+      <div data-for="media" hidden>
+        <label class="row"><span>Befehl</span>
+          <select id="media">
+            <option value="play_pause">Play/Pause</option>
+            <option value="next">Nächster Titel</option>
+            <option value="prev">Vorheriger Titel</option>
+            <option value="volumeup">Lauter</option>
+            <option value="volumedown">Leiser</option>
+            <option value="volumemute">Ton aus/an</option>
+          </select>
+        </label>
+      </div>
+
+      <div class="editor-actions">
+        <button class="btn danger small" id="clear">Feld leeren</button>
+        <button class="btn ghost small" id="test">Aktion testen</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="modal-backdrop" id="modal" hidden>
+  <div class="modal" role="dialog" aria-modal="true" aria-labelledby="modalTitle">
+    <h3 id="modalTitle"></h3>
+    <p id="modalText"></p>
+    <div class="buttons">
+      <button class="btn ghost" id="modalCancel">Abbrechen</button>
+      <button class="btn danger-fill" id="modalOk"></button>
+    </div>
+  </div>
+</div>
+
+<div class="cpick" id="cpick" role="dialog" aria-label="Eigene Farbe" hidden>
+  <div class="cp-sv" id="cpSv" aria-label="Helligkeit und Sättigung"><div class="cp-knob" id="cpSvKnob"></div></div>
+  <div class="cp-hue" id="cpHue" aria-label="Farbton"><div class="cp-knob" id="cpHueKnob"></div></div>
+  <div class="cp-row"><span class="cp-preview" id="cpPreview"></span><input type="text" id="cpHex" maxlength="7" spellcheck="false" aria-label="Eigene Farbe"></div>
+  <div class="cp-recent" id="cpRecent"></div>
+</div>
+
+<div class="toast" id="toast" role="status"></div>
+
+<script>
+(() => {
+  const $ = (id) => document.getElementById(id);
+  const MAX_KEYS = 48;
+  const FREE_KEYS = Array.from({ length: 12 }, (_, i) => `f${13 + i}`);
+  const EMOJI_RE = /\p{Extended_Pictographic}|\p{Regional_Indicator}/u;
+  const COLORS = ["#FFFFFF", "#1ED760", "#E0B25C", "#8EC5E8", "#E07A5F", "#B4D98E", "#C9A7EB", "#F2A6C9"];
+  const EMOJIS = ["🎮", "🎧", "🎤", "🔇", "📷", "🎬", "💬", "📁", "🌐", "💡", "🔒", "⚡", "🔥", "⭐", "❤️", "✅", "🚀", "🧮", "🖥️", "⏯️", "🎵"];
+  let ICONS = [];
+  let config = null;      // {pages:[{name, keys:[8 × key|null]}]}
+  let selected = 0;
+  let dirty = false;
+
+  const page = () => config.pages[0];
+  const key = () => page().keys[selected];
+  const vertical = () => page().scroll === "vertical";
+  const unit = () => vertical() ? 4 : 8;   /* nach unten eine Reihe, nach rechts eine ganze Seite */
+  const isFree = (a) => !!a && a.type === "key" && FREE_KEYS.includes((a.keys || "").toLowerCase());
+
+  /* freie Tasten, die schon eine andere Taste benutzt: Name → Beschriftung */
+  function usedFreeKeys() {
+    const used = new Map();
+    page().keys.forEach((k, i) => {
+      if (k && i !== selected && isFree(k.action)) used.set(k.action.keys.toLowerCase(), k.label);
+    });
+    return used;
+  }
+
+  /* nur ein einzelnes Emoji behalten (das zuletzt eingegebene), keine Buchstaben */
+  function lastEmoji(text) {
+    const parts = [...new Intl.Segmenter(undefined, { granularity: "grapheme" }).segment(text)]
+      .map(s => s.segment).filter(s => EMOJI_RE.test(s));
+    return parts.length ? parts[parts.length - 1] : "";
+  }
+
+  function toast(text, error) {
+    const t = $("toast");
+    t.textContent = text;
+    t.className = "toast show" + (error ? " err" : "");
+    clearTimeout(toast.timer);
+    toast.timer = setTimeout(() => t.className = "toast", 2600);
+  }
+
+  /* Rückfrage im Stil der App statt des grauen Browser-Dialogs; Enter bestätigt, Esc bricht ab */
+  function askConfirm(title, text, okLabel) {
+    return new Promise(resolve => {
+      $("modalTitle").textContent = title;
+      $("modalText").textContent = text;
+      $("modalOk").textContent = okLabel;
+      $("modal").hidden = false;
+      $("modalCancel").focus();
+      const close = (result) => {
+        $("modal").hidden = true;
+        window.removeEventListener("keydown", onKey, true);
+        resolve(result);
+      };
+      const onKey = (e) => {
+        if (e.key === "Escape") { e.preventDefault(); close(false); }
+      };
+      $("modalOk").onclick = () => close(true);
+      $("modalCancel").onclick = () => close(false);
+      $("modal").onclick = (e) => { if (e.target === $("modal")) close(false); };
+      window.addEventListener("keydown", onKey, true);
+    });
+  }
+
+  function setDirty(value = true) {
+    dirty = value;
+    $("save").disabled = !dirty;
+  }
+
+  function imageUrl(name) {
+    return `/api/keys/image/${encodeURIComponent(name)}`;
+  }
+
+  /* Symbol einer Taste für Vorschau; Emoji als Text, damit nichts als HTML gelesen wird */
+  function symbolNode(k) {
+    const symbol = k.symbol || "icon";
+    const node = document.createElement(symbol === "icon" || !(k.emoji || k.image) ? "i" : "span");
+    node.className = "ico";
+    if (symbol === "emoji" && k.emoji) {
+      node.classList.add("emoji");
+      node.textContent = k.emoji;
+    } else if (symbol === "image" && k.image) {
+      const img = document.createElement("img");
+      img.alt = "";
+      img.src = imageUrl(k.image);
+      if (k.image_shape && k.image_shape !== "square") img.className = k.image_shape;
+      node.appendChild(img);
+    } else {
+      node.classList.add(`icon-${k.icon}`);
+      node.style.color = k.color;
+    }
+    return node;
+  }
+
+  /* ---------- Vorschau ---------- */
+  function renderGrid() {
+    const grid = $("grid");
+    const keep = [grid.scrollLeft, grid.scrollTop]; /* wird bei jedem Tastendruck neu gezeichnet */
+    grid.className = "deck-scroll " + (vertical() ? "v" : "h");
+    grid.innerHTML = "";
+    let parent = grid;
+    page().keys.forEach((k, i) => {
+      if (!vertical() && i % 8 === 0) {
+        parent = document.createElement("div");
+        parent.className = "pagebox";
+        grid.appendChild(parent);
+      }
+      const slot = document.createElement("div");
+      slot.className = "slot" + (k ? "" : " empty") + (i === selected ? " selected" : "");
+      slot.draggable = true;
+      if (k) {
+        const label = document.createElement("span");
+        label.className = "lbl";
+        label.dataset.raw = "";
+        label.textContent = k.label;
+        label.style.color = k.text_color || "#FFFFFF";
+        if (k.symbol === "image" && k.image && k.image_fill) {
+          slot.classList.add("fill");
+          slot.style.backgroundImage = `linear-gradient(to bottom, transparent 45%, rgba(0,0,0,.66)), url("${imageUrl(k.image)}")`;
+          slot.append(label);
+        } else {
+          slot.append(symbolNode(k), label);
+        }
+      } else {
+        slot.innerHTML = `<i class="ico icon-plus"></i>`;
+      }
+      slot.onclick = () => { closeColorPicker(); selected = i; render(); };
+      slot.ondragstart = (e) => e.dataTransfer.setData("text/plain", String(i));
+      slot.ondragover = (e) => { e.preventDefault(); slot.classList.add("drop"); };
+      slot.ondragleave = () => slot.classList.remove("drop");
+      slot.ondrop = (e) => {
+        e.preventDefault();
+        const from = +e.dataTransfer.getData("text/plain");
+        const keys = page().keys;
+        [keys[from], keys[i]] = [keys[i], keys[from]];
+        selected = i;
+        setDirty();
+        render();
+      };
+      parent.appendChild(slot);
+    });
+    /* nach unten: wie am Gerät genau zwei Reihen sichtbar */
+    const first = grid.querySelector(".slot");
+    grid.style.maxHeight = vertical() && first ? `${first.offsetHeight * 2 + 12 + 10}px` : "";
+    [grid.scrollLeft, grid.scrollTop] = keep;
+
+    const count = page().keys.length;
+    $("keyCount").textContent = t("{n} Felder", { n: count });
+    $("addBlock").textContent = vertical() ? "+ Reihe" : "+ Seite";
+    $("addBlock").disabled = count + unit() > MAX_KEYS;
+    $("removeBlock").title = vertical() ? "Letzte Reihe entfernen" : "Letzte Seite entfernen";
+    $("removeBlock").disabled = count - unit() < 8;
+    $("scrollMode").querySelectorAll("button").forEach(b => b.classList.toggle("on", b.dataset.scroll === (page().scroll || "horizontal")));
+  }
+
+  /* ---------- Editor ---------- */
+  function markColors(container, value) {
+    const preset = COLORS.some(c => c.toLowerCase() === value.toLowerCase());
+    container.querySelectorAll("button[data-color]").forEach(b => b.classList.toggle("on", b.dataset.color.toLowerCase() === value.toLowerCase()));
+    const custom = container.querySelector("button.custom");
+    custom.classList.toggle("set", !preset);
+    custom.classList.toggle("on", !preset);
+    custom.style.setProperty("--swatch", value);
+  }
+
+  function renderEditor() {
+    const k = key();
+    $("editorTitle").textContent = t("Taste {n}", { n: selected + 1 });
+    $("emptyHint").hidden = !!k;
+    $("form").hidden = !k;
+    if (!k) return;
+
+    const symbol = k.symbol || "icon";
+    $("label").value = k.label;
+    $("symbolType").querySelectorAll("button").forEach(b => b.classList.toggle("on", b.dataset.symbol === symbol));
+    document.querySelectorAll("[data-symbol-panel]").forEach(el => el.hidden = el.dataset.symbolPanel !== symbol);
+    $("icons").querySelectorAll("button").forEach(b => b.classList.toggle("on", b.dataset.icon === k.icon));
+    if (document.activeElement !== $("emoji")) $("emoji").value = k.emoji || "";
+    $("emojis").querySelectorAll("button").forEach(b => b.classList.toggle("on", b.textContent === k.emoji));
+    $("imageThumb").innerHTML = k.image ? `<img alt="" src="${imageUrl(k.image)}">` : `<i class="icon-image"></i>`;
+    $("imageFill").querySelectorAll("button").forEach(b => b.classList.toggle("on", b.dataset.fill === (k.image_fill ? "1" : "0")));
+    $("imageShape").querySelectorAll("button").forEach(b => b.classList.toggle("on", b.dataset.shape === (k.image_shape || "square")));
+    $("imageShapeRow").hidden = !!k.image_fill; /* ganze Taste hat die Tastenform */
+    /* Emojis und Bilder bringen ihre eigenen Farben mit */
+    $("symbolColorRow").hidden = symbol !== "icon";
+    markColors($("symbolColors"), k.color);
+    markColors($("textColors"), k.text_color || "#FFFFFF");
+
+    const a = k.action || { type: "key", keys: "" };
+    const mode = isFree(a) ? "free" : a.type;
+    $("actionType").value = mode;
+    document.querySelectorAll("[data-for]").forEach(el => el.hidden = el.dataset.for !== mode);
+    const used = usedFreeKeys();
+    $("freeKeys").querySelectorAll("button").forEach(b => {
+      b.classList.toggle("on", mode === "free" && a.keys.toLowerCase() === b.dataset.key);
+      b.classList.toggle("used", used.has(b.dataset.key));
+      b.title = used.has(b.dataset.key) ? t("schon bei „{name}“", { name: used.get(b.dataset.key) }) : t("frei");
+    });
+    $("keys").value = mode === "key" ? a.keys || "" : "";
+    $("path").value = a.type === "launch" ? a.path || "" : "";
+    $("args").value = a.type === "launch" ? a.args || "" : "";
+    $("script").value = a.type === "script" ? a.path || "" : "";
+    $("url").value = a.type === "url" ? a.url || "" : "";
+    $("media").value = a.command || "play_pause";
+  }
+
+  function render() {
+    $("pageName").value = page().name;
+    renderGrid();
+    renderEditor();
+  }
+
+  function readAction() {
+    const type = $("actionType").value;
+    if (type === "free") {
+      const current = key().action;
+      return { type: "key", keys: isFree(current) ? current.keys : (FREE_KEYS.find(f => !usedFreeKeys().has(f)) || "f13") };
+    }
+    if (type === "key") return { type, keys: $("keys").value.trim() };
+    if (type === "launch") return { type, path: $("path").value.trim(), args: $("args").value.trim() };
+    if (type === "script") return { type, path: $("script").value.trim() };
+    if (type === "url") return { type, url: $("url").value.trim() };
+    return { type, command: $("media").value };
+  }
+
+  function updateKey(changes) {
+    Object.assign(key(), changes);
+    setDirty();
+    renderGrid();
+  }
+
+  function buildColorPicker(container, field) {
+    COLORS.forEach(c => {
+      const b = document.createElement("button");
+      b.dataset.color = c;
+      b.style.background = c;
+      b.title = c;
+      b.onclick = () => { updateKey({ [field]: c }); renderEditor(); };
+      container.appendChild(b);
+    });
+    const custom = document.createElement("button");
+    custom.className = "custom";
+    custom.title = "Eigene Farbe";
+    custom.innerHTML = `<i class="icon-plus"></i>`;
+    custom.onclick = (e) => { e.stopPropagation(); openColorPicker(custom, field); };
+    container.appendChild(custom);
+  }
+
+  /* ---------- Eigene Farbe (statt des Windows-Farbdialogs) ---------- */
+  const RECENT_KEY = "deckthing.recentColors";
+  const cp = { field: null, anchor: null, h: 0, s: 0, v: 1 };
+
+  function hsvToHex(h, s, v) {
+    const f = (n) => {
+      const k = (n + h / 60) % 6;
+      return Math.round(255 * (v - v * s * Math.max(0, Math.min(k, 4 - k, 1))));
+    };
+    return "#" + [f(5), f(3), f(1)].map(x => x.toString(16).padStart(2, "0")).join("").toUpperCase();
+  }
+
+  function hexToHsv(hex) {
+    const n = parseInt(hex.slice(1), 16);
+    const r = (n >> 16 & 255) / 255, g = (n >> 8 & 255) / 255, b = (n & 255) / 255;
+    const max = Math.max(r, g, b), d = max - Math.min(r, g, b);
+    let h = 0;
+    if (d) h = max === r ? ((g - b) / d + 6) % 6 : max === g ? (b - r) / d + 2 : (r - g) / d + 4;
+    return { h: h * 60, s: max ? d / max : 0, v: max };
+  }
+
+  function recentColors() {
+    try { return JSON.parse(localStorage.getItem(RECENT_KEY)) || []; } catch (e) { return []; }
+  }
+
+  function rememberColor(hex) {
+    if (COLORS.includes(hex)) return;
+    const list = [hex, ...recentColors().filter(c => c !== hex)].slice(0, 9);
+    try { localStorage.setItem(RECENT_KEY, JSON.stringify(list)); } catch (e) { /* ohne Speicher eben ohne Verlauf */ }
+  }
+
+  function drawPicker() {
+    const hex = hsvToHex(cp.h, cp.s, cp.v);
+    $("cpSv").style.setProperty("--hue", hsvToHex(cp.h, 1, 1));
+    $("cpSvKnob").style.left = `${cp.s * 100}%`;
+    $("cpSvKnob").style.top = `${(1 - cp.v) * 100}%`;
+    $("cpSvKnob").style.background = hex;
+    $("cpHueKnob").style.left = `${cp.h / 360 * 100}%`;
+    $("cpHueKnob").style.background = hsvToHex(cp.h, 1, 1);
+    $("cpPreview").style.background = hex;
+    if (document.activeElement !== $("cpHex")) { $("cpHex").value = hex; $("cpHex").classList.remove("invalid"); }
+    return hex;
+  }
+
+  function applyPicker() {
+    const hex = drawPicker();
+    updateKey({ [cp.field]: hex });
+    renderEditor();
+  }
+
+  function openColorPicker(anchor, field) {
+    if (!$("cpick").hidden && cp.field === field) return closeColorPicker();
+    cp.field = field;
+    cp.anchor = anchor;
+    Object.assign(cp, hexToHsv(key()[field] || "#FFFFFF"));
+    $("cpRecent").innerHTML = "";
+    recentColors().forEach(c => {
+      const b = document.createElement("button");
+      b.style.background = c;
+      b.title = c;
+      b.onclick = () => { Object.assign(cp, hexToHsv(c)); applyPicker(); };
+      $("cpRecent").appendChild(b);
+    });
+    $("cpick").hidden = false;
+    drawPicker();
+    /* unter dem Knopf, am Fensterrand nach innen geschoben */
+    const r = anchor.getBoundingClientRect(), box = $("cpick").getBoundingClientRect();
+    const top = r.bottom + 8 + box.height > innerHeight ? r.top - 8 - box.height : r.bottom + 8;
+    $("cpick").style.left = `${Math.max(8, Math.min(r.left, innerWidth - box.width - 8))}px`;
+    $("cpick").style.top = `${Math.max(8, top)}px`;
+  }
+
+  function closeColorPicker() {
+    if ($("cpick").hidden) return;
+    $("cpick").hidden = true;
+    const k = key();
+    if (k && cp.field) rememberColor(k[cp.field]);
+    cp.field = null;
+  }
+
+  function dragArea(el, onMove) {
+    el.onpointerdown = (e) => {
+      el.setPointerCapture(e.pointerId);
+      const move = (ev) => {
+        const r = el.getBoundingClientRect();
+        onMove(Math.min(1, Math.max(0, (ev.clientX - r.left) / r.width)), Math.min(1, Math.max(0, (ev.clientY - r.top) / r.height)));
+        applyPicker();
+      };
+      move(e);
+      el.onpointermove = move;
+      el.onpointerup = el.onpointercancel = () => { el.onpointermove = null; };
+    };
+  }
+  dragArea($("cpSv"), (x, y) => { cp.s = x; cp.v = 1 - y; });
+  dragArea($("cpHue"), (x) => { cp.h = Math.min(359.9, x * 360); });
+  $("cpHex").oninput = (e) => {
+    let v = e.target.value.trim();
+    if (v && v[0] !== "#") v = "#" + v;
+    const ok = /^#[0-9a-f]{6}$/i.test(v);
+    e.target.classList.toggle("invalid", !ok && v.length > 1);
+    if (!ok) return;
+    Object.assign(cp, hexToHsv(v.toUpperCase()));
+    applyPicker();
+  };
+  $("cpHex").onkeydown = (e) => { if (e.key === "Enter") closeColorPicker(); };
+  document.addEventListener("pointerdown", (e) => {
+    if (!$("cpick").hidden && !e.target.closest("#cpick") && !e.target.closest("button.custom")) closeColorPicker();
+  });
+  window.addEventListener("keydown", (e) => { if (e.key === "Escape" && !$("cpick").hidden) { e.preventDefault(); closeColorPicker(); } });
+  /* beim Scrollen würde das Fenster am Knopf vorbeischweben */
+  document.addEventListener("scroll", (e) => { if (!e.target.closest || !e.target.closest("#cpick")) closeColorPicker(); }, true);
+  window.addEventListener("resize", closeColorPicker);
+
+  function buildPickers() {
+    ICONS.forEach(name => {
+      const b = document.createElement("button");
+      b.dataset.icon = name;
+      b.title = name;
+      b.innerHTML = `<i class="icon-${name}"></i>`;
+      b.onclick = () => { updateKey({ icon: name }); renderEditor(); };
+      $("icons").appendChild(b);
+    });
+    EMOJIS.forEach(emoji => {
+      const b = document.createElement("button");
+      b.textContent = emoji;
+      b.onclick = () => { updateKey({ emoji }); $("emoji").value = emoji; renderEditor(); };
+      $("emojis").appendChild(b);
+    });
+    FREE_KEYS.forEach(name => {
+      const b = document.createElement("button");
+      b.dataset.key = name;
+      b.textContent = name.toUpperCase();
+      b.onclick = () => { updateKey({ action: { type: "key", keys: name } }); renderEditor(); };
+      $("freeKeys").appendChild(b);
+    });
+    buildColorPicker($("symbolColors"), "color");
+    buildColorPicker($("textColors"), "text_color");
+  }
+
+  $("symbolType").onclick = (e) => {
+    const symbol = e.target.dataset.symbol;
+    if (!symbol) return;
+    updateKey({ symbol });
+    renderEditor();
+    if (symbol === "emoji" && !key().emoji) $("emoji").focus();
+    if (symbol === "image" && !key().image) $("imageFile").click();
+  };
+  $("emoji").oninput = (e) => {
+    const raw = e.target.value.trim();
+    const emoji = lastEmoji(raw);
+    if (raw !== emoji) {
+      e.target.value = emoji;
+      if (!emoji) toast("Hier geht nur ein Emoji – Text gehört ins Feld „Name“", true);
+    }
+    updateKey({ emoji });
+  };
+
+  /* ---------- Anzahl und Richtung ---------- */
+  $("scrollMode").onclick = (e) => {
+    const scroll = e.target.dataset.scroll;
+    if (!scroll || scroll === page().scroll) return;
+    page().scroll = scroll;
+    const keys = page().keys;
+    while (keys.length % unit()) keys.push(null); /* nach rechts nur ganze Seiten */
+    $("grid").scrollLeft = $("grid").scrollTop = 0;
+    setDirty();
+    render();
+  };
+  $("addBlock").onclick = () => {
+    const keys = page().keys;
+    if (keys.length + unit() > MAX_KEYS) return;
+    selected = keys.length;
+    for (let i = 0; i < unit(); i++) keys.push(null);
+    setDirty();
+    render();
+    const grid = $("grid");
+    grid.scrollTo({ left: grid.scrollWidth, top: grid.scrollHeight, behavior: "smooth" });
+  };
+  $("removeBlock").onclick = async () => {
+    const keys = page().keys;
+    if (keys.length - unit() < 8) return;
+    const used = keys.slice(-unit()).filter(Boolean).length;
+    if (used && !await askConfirm(vertical() ? t("Letzte Reihe entfernen?") : t("Letzte Seite entfernen?"),
+      used === 1 ? t("Dort ist noch 1 Taste belegt. Sie wird mit entfernt.") : t("Dort sind noch {n} Tasten belegt. Sie werden mit entfernt.", { n: used }),
+      t("Entfernen"))) return;
+    keys.splice(-unit());
+    selected = Math.min(selected, keys.length - 1);
+    setDirty();
+    render();
+  };
+  $("emoji").onblur = () => renderEditor();
+
+  $("imageButton").onclick = () => $("imageFile").click();
+  $("imageFill").onclick = (e) => {
+    if (!e.target.dataset.fill) return;
+    updateKey({ image_fill: e.target.dataset.fill === "1" });
+    renderEditor();
+  };
+  $("imageShape").onclick = (e) => {
+    if (!e.target.dataset.shape) return;
+    updateKey({ image_shape: e.target.dataset.shape });
+    renderEditor();
+  };
+  $("imageFile").onchange = async () => {
+    const file = $("imageFile").files[0];
+    $("imageFile").value = "";
+    if (!file) return;
+    const res = await fetch("/api/keys/image", { method: "POST", body: file });
+    const body = await res.json().catch(() => ({}));
+    if (!res.ok) return toast(body.error || "Bild konnte nicht übernommen werden", true);
+    updateKey({ symbol: "image", image: body.image });
+    renderEditor();
+  };
+
+  /* ---------- Kombination aufnehmen ---------- */
+  const KEY_NAMES = { Escape: "esc", Enter: "enter", Tab: "tab", " ": "space",
+    Backspace: "backspace", Delete: "delete", Home: "home", End: "end", PageUp: "pageup", PageDown: "pagedown",
+    ArrowLeft: "left", ArrowRight: "right", ArrowUp: "up", ArrowDown: "down", PrintScreen: "printscreen",
+    AudioVolumeMute: "volumemute", AudioVolumeDown: "volumedown", AudioVolumeUp: "volumeup",
+    MediaTrackNext: "medianext", MediaTrackPrevious: "mediaprev", MediaPlayPause: "mediaplaypause" };
+  const MODIFIERS = ["Control", "Shift", "Alt", "Meta", "OS", "AltGraph"];
+  let recording = false;
+
+  function stopRecording() {
+    recording = false;
+    $("record").classList.remove("recording");
+    $("record").textContent = "Aufnehmen";
+  }
+
+  $("record").onclick = () => {
+    if (recording) return stopRecording();
+    recording = true;
+    $("record").classList.add("recording");
+    $("record").textContent = "Tasten drücken …";
+  };
+
+  window.addEventListener("keydown", (e) => {
+    if (!recording) return;
+    e.preventDefault();
+    if (MODIFIERS.includes(e.key)) return; /* auf die Haupttaste warten */
+    let name = KEY_NAMES[e.key];
+    if (!name && /^F\d{1,2}$/.test(e.key)) name = e.key.toLowerCase();
+    /* e.code statt e.key: Shift+1 soll „shift+1“ ergeben, nicht „!“ */
+    if (!name && /^Key[A-Z]$/.test(e.code)) name = e.code.slice(3).toLowerCase();
+    if (!name && /^Digit\d$/.test(e.code)) name = e.code.slice(5);
+    if (!name) return toast(t("„{key}“ lässt sich nicht belegen", { key: e.key }), true);
+    const mods = [e.ctrlKey && "ctrl", e.shiftKey && "shift", e.altKey && "alt", e.metaKey && "win"].filter(Boolean);
+    $("keys").value = [...mods, name].join("+");
+    updateKey({ action: readAction() });
+    stopRecording();
+  }, true);
+
+  /* ---------- Eingaben ---------- */
+  $("pageName").oninput = (e) => { page().name = e.target.value; setDirty(); };
+  $("label").oninput = (e) => updateKey({ label: e.target.value });
+  $("actionType").onchange = () => { updateKey({ action: readAction() }); renderEditor(); };
+  window.addEventListener("resize", () => config && renderGrid());
+  ["keys", "path", "args", "script", "url"].forEach(id => $(id).oninput = () => updateKey({ action: readAction() }));
+  $("media").onchange = () => updateKey({ action: readAction() });
+
+  $("create").onclick = () => {
+    page().keys[selected] = { label: t("Neue Taste"), symbol: "icon", icon: "zap", emoji: "", image: "",
+      color: "#1ED760", text_color: "#FFFFFF", action: { type: "key", keys: "" } };
+    setDirty();
+    render();
+    $("label").select();
+  };
+  $("clear").onclick = () => { page().keys[selected] = null; setDirty(); render(); };
+
+  $("test").onclick = async () => {
+    const res = await fetch("/api/keys/test", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(readAction()) });
+    const body = await res.json().catch(() => ({}));
+    toast(res.ok ? "Ausgeführt" : (body.error || "Hat nicht geklappt"), !res.ok);
+  };
+
+  async function save() {
+    const res = await fetch("/api/keys", { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify(config) });
+    const body = await res.json().catch(() => ({}));
+    if (res.ok) { setDirty(false); toast("Gespeichert – das Gerät zeigt die neue Belegung"); }
+    else toast(body.error || "Speichern fehlgeschlagen", true);
+    return res.ok;
+  }
+  $("save").onclick = save;
+
+  /* ---------- Einbettung in die PC-App ---------- */
+  const EMBEDDED = window.parent !== window;
+  const appApi = () => { try { return window.parent.pywebview && window.parent.pywebview.api; } catch (e) { return null; } };
+  document.body.classList.toggle("embedded", EMBEDDED);
+  window.tastenDirty = () => dirty;
+  window.tastenSave = save;
+  window.tastenDiscard = () => load();
+  window.tastenReload = () => { if (!dirty) load(); };  /* beim Öffnen des Reiters frisch vom PC holen */
+  document.querySelectorAll("[data-browse]").forEach(btn => {
+    btn.hidden = !appApi();
+    btn.onclick = async () => {
+      const picked = await appApi().pick_file(btn.dataset.browse);
+      if (!picked) return;
+      $(btn.dataset.target).value = picked;
+      updateKey({ action: readAction() });
+    };
+  });
+  /* pywebview meldet sich im Hauptfenster erst nach dem Laden */
+  window.parent.addEventListener && window.parent.addEventListener("pywebviewready", () =>
+    document.querySelectorAll("[data-browse]").forEach(btn => btn.hidden = !appApi()));
+
+  async function load() {
+    const res = await fetch("/api/keys");
+    const data = await res.json();
+    ICONS = data.icons;
+    config = data.config;
+    selected = Math.min(selected, config.pages[0].keys.length - 1); /* Brücke füllt auf ganze Seiten/Reihen auf */
+    if (!$("icons").children.length) buildPickers();
+    setDirty(false);
+    render();
+  }
+  $("reload").onclick = async () => {
+    if (!dirty || await askConfirm("Änderungen verwerfen?", "Alles seit dem letzten Speichern geht verloren.", "Verwerfen")) load();
+  };
+  /* in der App fragt das App-Fenster selbst nach; nur im Browser der Browserdialog */
+  window.addEventListener("beforeunload", (e) => { if (dirty && !EMBEDDED) { e.preventDefault(); e.returnValue = ""; } });
+
+  window.addEventListener("languagechange-app", () => { if (config) render(); });
+  load();
+})();
+</script>
+</body>
+</html>

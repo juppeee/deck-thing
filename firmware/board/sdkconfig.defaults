@@ -1,0 +1,37 @@
+# Waveshare ESP32-S3-Touch-LCD-4.3: ESP32-S3-WROOM-1-N16R8 (16 MB quad flash, 8 MB octal PSRAM)
+CONFIG_IDF_TARGET="esp32s3"
+CONFIG_ESPTOOLPY_FLASHMODE_QIO=y
+CONFIG_ESPTOOLPY_FLASHFREQ_80M=y
+CONFIG_ESPTOOLPY_FLASHSIZE_16MB=y
+CONFIG_PARTITION_TABLE_SINGLE_APP_LARGE=y
+
+CONFIG_SPIRAM=y
+CONFIG_SPIRAM_MODE_OCT=y
+CONFIG_SPIRAM_SPEED_80M=y
+CONFIG_SPIRAM_USE_MALLOC=y
+CONFIG_SPIRAM_MALLOC_ALWAYSINTERNAL=16384
+# Run code and constants from PSRAM: flash writes (NVS, OTA) and Bluetooth then no longer
+# stall the RGB panel, which otherwise shows up as a torn or shifting picture
+CONFIG_SPIRAM_XIP_FROM_PSRAM=y
+# Längere Cache-Zeilen: das Display liest ständig Bildpuffer aus dem PSRAM. Mit 32 B kam das
+# Nachladen nicht hinterher und das Bild zuckte nach unten (Waveshares Beispiele setzen das ebenso)
+CONFIG_ESP32S3_DATA_CACHE_LINE_64B=y
+
+CONFIG_ESP_DEFAULT_CPU_FREQ_MHZ_240=y
+CONFIG_FREERTOS_HZ=1000
+CONFIG_COMPILER_OPTIMIZATION_PERF=y
+CONFIG_ESP_MAIN_TASK_STACK_SIZE=8192
+
+# Log nur über den UART-Anschluss (CH343); der USB-Anschluss gehört allein der Verbindung zur PC-App
+CONFIG_ESP_CONSOLE_UART_DEFAULT=y
+CONFIG_ESP_CONSOLE_SECONDARY_NONE=y
+
+# RGB panel: keep refreshing while flash is busy, and resync on VSYNC after a hiccup
+CONFIG_LCD_RGB_ISR_IRAM_SAFE=y
+CONFIG_LCD_RGB_RESTART_IN_VSYNC=y
+
+# LVGL is configured through include/lv_conf.h, not menuconfig
+# CONFIG_LV_CONF_SKIP is not set
+
+# Safety net for the display interrupt (it copies 60 lines per second out of PSRAM)
+CONFIG_ESP_INT_WDT_TIMEOUT_MS=800

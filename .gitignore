@@ -1,0 +1,21 @@
+# Build output
+build/
+dist/
+*.spec
+firmware/sim/build/
+firmware/board/.pio/
+firmware/board/sdkconfig.*
+!firmware/board/sdkconfig.defaults
+firmware/board/managed_components/
+firmware/board/dependencies.lock
+.vscode/
+
+# Python
+__pycache__/
+*.pyc
+
+# Personal data lives in ~/.deck-thing, never in the repo - these guard against stray copies
+keys.json
+spotify.json
+settings.json
+*.log

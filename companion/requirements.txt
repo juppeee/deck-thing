@@ -1,0 +1,15 @@
+pywebview>=6.2
+pystray>=0.19
+Pillow>=12.0
+aiohttp>=3.13
+pycaw>=20251023
+comtypes>=1.4
+psutil>=7.0
+pyserial>=3.5
+truststore>=0.10
+winrt-runtime>=3.2
+winrt-Windows.Foundation>=3.2
+winrt-Windows.Foundation.Collections>=3.2
+winrt-Windows.Media>=3.2
+winrt-Windows.Media.Control>=3.2
+winrt-Windows.Storage.Streams>=3.2
