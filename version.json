@@ -1,0 +1,6 @@
+{
+  "version": "0.1.0",
+  "notes": "First preview of Deck Thing.",
+  "installer_url": "https://github.com/juppeee/deck-thing/releases/latest/download/DeckThing-Setup.exe",
+  "installer_sha256": "d1ac75b42ccdd404ac5e433a40edd52dae134af855b8a420704a31ae18ea42b8"
+}

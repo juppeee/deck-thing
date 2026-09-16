@@ -244,6 +244,9 @@ class BridgeServer:
 
 def ssl_context() -> ssl.SSLContext:
     # Windows-Zertifikatsspeicher: Virenscanner mit TLS-Prüfung brechen sonst jede Verbindung ab
+    if "truststore" in getattr(ssl.SSLContext, "__module__", ""):
+        # schon global umgebogen (z. B. pip-system-certs); ein zweites truststore darüber läuft in eine Endlosschleife
+        return ssl.create_default_context()
     try:
         import truststore
 
