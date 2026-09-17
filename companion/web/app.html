@@ -7,7 +7,7 @@
 <link rel="stylesheet" href="/fonts/lucide.css">
 <script src="/i18n.js"></script>
 <style>
-  /* Schrift liegt bei der App (offline), nicht bei Google Fonts */
+  /* the font ships with the app (offline), not from Google Fonts */
   @font-face { font-family: "Figtree"; font-weight: 400 500; src: url("/fonts/Figtree-Medium.ttf"); }
   @font-face { font-family: "Figtree"; font-weight: 600; src: url("/fonts/Figtree-SemiBold.ttf"); }
   @font-face { font-family: "Figtree"; font-weight: 700; src: url("/fonts/Figtree-Bold.ttf"); }
@@ -24,17 +24,17 @@
   :focus-visible { outline: 2px solid var(--green); outline-offset: 2px; }
   [hidden] { display: none !important; }
 
-  /* Seitenleiste */
+  /* Sidebar */
   nav { width: 232px; flex: none; padding: 20px 12px; display: flex; flex-direction: column; gap: 4px; }
   .brand { display: flex; align-items: center; gap: 10px; padding: 4px 12px 22px; font-weight: 800; font-size: 18px; }
   .brand svg { width: 32px; height: 32px; flex: none; }
 
-  /* Logo (gleiche Bewegungen wie die Startanimation am Gerät) */
+  /* Logo (same motion as the start animation on the device) */
   .l-dial, .l-bar, .l-pop { transform-box: fill-box; }
   .l-dial { transform-origin: center; }
   .l-bar { transform-origin: bottom; }
   .l-pop { transform-origin: center; }
-  .brand .l-dial { animation: dialSpin 24s linear infinite; }  /* in der Seitenleiste nur ganz ruhig */
+  .brand .l-dial { animation: dialSpin 24s linear infinite; }  /* very calm in the sidebar */
   @keyframes dialSpin { to { transform: rotate(360deg); } }
   @keyframes barBounce1 { 0%, 100% { transform: scaleY(.55); } 50% { transform: scaleY(1); } }
   @keyframes barBounce2 { 0%, 100% { transform: scaleY(.7); } 50% { transform: scaleY(1); } }
@@ -43,7 +43,7 @@
   @keyframes introFlash { 0% { opacity: .9; transform: scale(.02); } 100% { opacity: 0; transform: scale(1); } }
   @keyframes splashOut { to { opacity: 0; visibility: hidden; } }
 
-  /* Startanimation beim Öffnen des Fensters */
+  /* start animation when the window opens */
   .splash { position: fixed; inset: 0; z-index: 50; background: #0a0a0a; display: grid; place-items: center; }
   .splash.out { animation: splashOut .35s ease-in forwards; pointer-events: none; }
   .splash .stage { position: relative; width: 220px; height: 220px; }
@@ -96,7 +96,7 @@
   .btn.danger { background: transparent; color: var(--red); border: 1px solid #5a2a2f; }
   .btn.small { height: 32px; padding: 0 14px; font-size: 13px; }
 
-  /* Spotify-Anleitung */
+  /* Spotify guide */
   .steps { counter-reset: step; list-style: none; padding: 0; margin: 0; max-width: 720px; }
   .steps li { counter-increment: step; position: relative; padding: 0 0 22px 48px; color: var(--muted); }
   .steps li::before { content: counter(step); position: absolute; left: 0; top: -2px; width: 30px; height: 30px; border-radius: 50%;
@@ -114,7 +114,7 @@
   .spinner { width: 18px; height: 18px; border: 2px solid #535353; border-top-color: var(--green); border-radius: 50%; animation: spin .8s linear infinite; }
   @keyframes spin { to { transform: rotate(360deg); } }
 
-  /* Einstellungen */
+  /* Settings */
   .setting { display: flex; justify-content: space-between; align-items: center; gap: 24px; padding: 16px 0; border-bottom: 1px solid #242424; max-width: 760px; }
   .setting:last-child { border-bottom: 0; }
   .setting b { display: block; }
@@ -205,7 +205,7 @@
 </nav>
 
 <main>
-  <!-- Übersicht -->
+  <!-- Overview -->
   <section class="view" id="view-overview">
     <h1>Übersicht</h1>
     <p class="lead">Was gerade läuft und ob alles verbunden ist.</p>
@@ -231,7 +231,7 @@
     </div>
   </section>
 
-  <!-- Tasten: der Editor als eigene Seite im Rahmen -->
+  <!-- Keys: the editor as its own page in a frame -->
   <section class="view frame" id="view-keys" hidden></section>
 
   <!-- Spotify -->
@@ -265,7 +265,7 @@
     </div>
   </section>
 
-  <!-- Einstellungen -->
+  <!-- Settings -->
   <section class="view" id="view-settings" hidden>
     <h1>Einstellungen</h1>
     <p class="lead" id="devHint" hidden>Entwicklungsmodus: Autostart und Updates gibt es nur in der installierten App.</p>
@@ -359,7 +359,7 @@
     toast.timer = setTimeout(() => t.className = "toast", 2600);
   }
 
-  /* Rückfrage mit beliebigen Knöpfen; Esc oder Klick daneben = null */
+  /* question with any buttons; Esc or a click outside = null */
   function ask(title, text, buttons) {
     return new Promise(resolve => {
       $("modalTitle").textContent = title;
@@ -386,10 +386,10 @@
     });
   }
 
-  /* ---------- Startanimation ---------- */
-  /* Beim Öffnen: aufblitzen, Logo springt auf, Balken wippen, Drehrad dreht – dann blendet es aus.
-     Die App ruft playSplash() auch, wenn das Fenster aus dem Infobereich wieder aufgeht. */
-  /* Kopie statt <use>: CSS-Animationen erreichen Inhalte hinter <use> nicht */
+  /* ---------- Start animation ---------- */
+  /* On open: flash, the logo pops, bars bounce, the dial turns – then it fades out.
+     The app also calls playSplash() when the window comes back from the tray. */
+  /* a copy rather than <use>: CSS animations don't reach content behind <use> */
   const logo = () => document.getElementById("logo").content.firstElementChild.cloneNode(true);
   $("brand").prepend(logo());
   window.playSplash = () => {
@@ -403,7 +403,7 @@
     setTimeout(() => el.classList.add("out"), 1500);
     setTimeout(() => el.remove(), 1900);
   };
-  /* aus dem Autostart unsichtbar gestartet: erst beim Öffnen abspielen */
+  /* started hidden by autostart: play only when opened */
   if (!new URLSearchParams(location.search).has("tray")) window.playSplash();
 
   /* ---------- Navigation ---------- */
@@ -413,7 +413,7 @@
     catch (e) { return false; }
   };
 
-  /* ungespeicherte Tasten: true = weiter, false = bleiben */
+  /* unsaved keys: true = go on, false = stay */
   async function resolveUnsaved(question) {
     if (!window.hasUnsaved()) return true;
     const choice = await ask("Tasten nicht gespeichert", t("Du hast die Tastenbelegung geändert.") + " " + t(question), [
@@ -445,7 +445,7 @@
   }
   document.querySelectorAll(".nav-item").forEach(b => b.onclick = () => show(b.dataset.view));
   document.querySelectorAll("[data-goto]").forEach(b => b.onclick = () => show(b.dataset.goto));
-  /* Links auch in übersetzten Blöcken, die beim Sprachwechsel neu entstehen */
+  /* links also inside translated blocks that are rebuilt on a language change */
   document.addEventListener("click", (e) => {
     const a = e.target.closest("[data-url]");
     if (a) { e.preventDefault(); openUrl(a.dataset.url); }
@@ -511,7 +511,7 @@
     try {
       status = await (await fetch("/api/status", { cache: "no-store" })).json();
       render();
-    } catch (e) { /* Brücke startet gerade neu */ }
+    } catch (e) { /* bridge is restarting */ }
   }
   setInterval(refresh, 2000);
   window.addEventListener("languagechange-app", () => { render(); if (api()) loadSettings(); });
@@ -549,7 +549,7 @@
     refresh();
   };
 
-  /* ---------- Einstellungen und Updates ---------- */
+  /* ---------- Settings and updates ---------- */
   async function loadSettings() {
     if (!api()) {
       $("devHint").hidden = false;
@@ -583,7 +583,7 @@
     document.querySelectorAll("[data-page]").forEach(b => {
       b.classList.toggle("on", !!pages[b.dataset.page]);
       b.setAttribute("aria-pressed", pages[b.dataset.page] ? "true" : "false");
-      /* die letzte eingeschaltete Seite lässt sich nicht ausschalten */
+      /* the last page that is on can't be switched off */
       b.disabled = !api() || (pages[b.dataset.page] && on === 1);
       b.title = b.disabled && api() ? t("Mindestens eine Seite bleibt an") : "";
     });

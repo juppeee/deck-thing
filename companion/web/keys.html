@@ -7,7 +7,7 @@
 <link rel="stylesheet" href="/fonts/lucide.css">
 <script src="/i18n.js"></script>
 <style>
-  /* Schrift liegt bei der App (offline), nicht bei Google Fonts */
+  /* the font ships with the app (offline), not from Google Fonts */
   @font-face { font-family: "Figtree"; font-weight: 400 500; src: url("/fonts/Figtree-Medium.ttf"); }
   @font-face { font-family: "Figtree"; font-weight: 600; src: url("/fonts/Figtree-SemiBold.ttf"); }
   @font-face { font-family: "Figtree"; font-weight: 700; src: url("/fonts/Figtree-Bold.ttf"); }
@@ -44,7 +44,7 @@
   .btn.danger { background: transparent; color: var(--red); border: 1px solid #5a2a2f; }
   .btn.small { height: 34px; padding: 0 14px; font-size: 13px; }
 
-  /* Gerätevorschau im Seitenverhältnis des Displays */
+  /* device preview in the display's aspect ratio */
   .device { background: #0b0b0b; border: 1px solid #2a2a2a; border-radius: 14px; padding: 18px; position: sticky; top: 16px; }
   .device .page { margin-bottom: 12px; }
   .device .page input { background: transparent; border: 1px solid transparent; border-radius: 8px; font-size: 20px; font-weight: 700; padding: 4px 8px; width: 100%; }
@@ -103,7 +103,7 @@
   .colors { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; margin-bottom: 14px; }
   .colors button { width: 30px; height: 30px; border-radius: 50%; border: 2px solid #121212; cursor: pointer; box-shadow: 0 0 0 1px #3a3a3a; }
   .colors button.on { box-shadow: 0 0 0 2px var(--text); }
-  /* eigene Farbe: Regenbogen-Knopf, zeigt die gewählte Farbe, sobald sie keine der Vorgaben ist */
+  /* custom colour: rainbow button that shows the chosen colour once it isn't one of the presets */
   .colors button.custom { position: relative; background: conic-gradient(#f55, #fd5, #5f7, #5df, #66f, #f5d, #f55); display: grid; place-items: center; }
   .colors button.custom i { font-size: 15px; color: #fff; filter: drop-shadow(0 0 2px rgba(0,0,0,.8)); }
   .colors button.custom.set { background: var(--swatch); }
@@ -334,10 +334,10 @@
   const page = () => config.pages[0];
   const key = () => page().keys[selected];
   const vertical = () => page().scroll === "vertical";
-  const unit = () => vertical() ? 4 : 8;   /* nach unten eine Reihe, nach rechts eine ganze Seite */
+  const unit = () => vertical() ? 4 : 8;   /* one row downwards, a whole page to the right */
   const isFree = (a) => !!a && a.type === "key" && FREE_KEYS.includes((a.keys || "").toLowerCase());
 
-  /* freie Tasten, die schon eine andere Taste benutzt: Name → Beschriftung */
+  /* free keys already used by another key: name → label */
   function usedFreeKeys() {
     const used = new Map();
     page().keys.forEach((k, i) => {
@@ -346,7 +346,7 @@
     return used;
   }
 
-  /* nur ein einzelnes Emoji behalten (das zuletzt eingegebene), keine Buchstaben */
+  /* keep a single emoji only (the last one typed), no letters */
   function lastEmoji(text) {
     const parts = [...new Intl.Segmenter(undefined, { granularity: "grapheme" }).segment(text)]
       .map(s => s.segment).filter(s => EMOJI_RE.test(s));
@@ -361,7 +361,7 @@
     toast.timer = setTimeout(() => t.className = "toast", 2600);
   }
 
-  /* Rückfrage im Stil der App statt des grauen Browser-Dialogs; Enter bestätigt, Esc bricht ab */
+  /* question in the app's style instead of the grey browser dialog; Esc cancels */
   function askConfirm(title, text, okLabel) {
     return new Promise(resolve => {
       $("modalTitle").textContent = title;
@@ -393,7 +393,7 @@
     return `/api/keys/image/${encodeURIComponent(name)}`;
   }
 
-  /* Symbol einer Taste für Vorschau; Emoji als Text, damit nichts als HTML gelesen wird */
+  /* a key's icon for the preview; emoji as text so nothing is read as HTML */
   function symbolNode(k) {
     const symbol = k.symbol || "icon";
     const node = document.createElement(symbol === "icon" || !(k.emoji || k.image) ? "i" : "span");
@@ -414,10 +414,10 @@
     return node;
   }
 
-  /* ---------- Vorschau ---------- */
+  /* ---------- Preview ---------- */
   function renderGrid() {
     const grid = $("grid");
-    const keep = [grid.scrollLeft, grid.scrollTop]; /* wird bei jedem Tastendruck neu gezeichnet */
+    const keep = [grid.scrollLeft, grid.scrollTop]; /* redrawn on every key stroke */
     grid.className = "deck-scroll " + (vertical() ? "v" : "h");
     grid.innerHTML = "";
     let parent = grid;
@@ -461,7 +461,7 @@
       };
       parent.appendChild(slot);
     });
-    /* nach unten: wie am Gerät genau zwei Reihen sichtbar */
+    /* downwards: exactly two rows visible, like on the device */
     const first = grid.querySelector(".slot");
     grid.style.maxHeight = vertical() && first ? `${first.offsetHeight * 2 + 12 + 10}px` : "";
     [grid.scrollLeft, grid.scrollTop] = keep;
@@ -502,8 +502,8 @@
     $("imageThumb").innerHTML = k.image ? `<img alt="" src="${imageUrl(k.image)}">` : `<i class="icon-image"></i>`;
     $("imageFill").querySelectorAll("button").forEach(b => b.classList.toggle("on", b.dataset.fill === (k.image_fill ? "1" : "0")));
     $("imageShape").querySelectorAll("button").forEach(b => b.classList.toggle("on", b.dataset.shape === (k.image_shape || "square")));
-    $("imageShapeRow").hidden = !!k.image_fill; /* ganze Taste hat die Tastenform */
-    /* Emojis und Bilder bringen ihre eigenen Farben mit */
+    $("imageShapeRow").hidden = !!k.image_fill; /* a whole-key picture has the key's shape */
+    /* emoji and pictures bring their own colours */
     $("symbolColorRow").hidden = symbol !== "icon";
     markColors($("symbolColors"), k.color);
     markColors($("textColors"), k.text_color || "#FFFFFF");
@@ -568,7 +568,7 @@
     container.appendChild(custom);
   }
 
-  /* ---------- Eigene Farbe (statt des Windows-Farbdialogs) ---------- */
+  /* ---------- Custom colour (instead of the Windows colour dialog) ---------- */
   const RECENT_KEY = "deckthing.recentColors";
   const cp = { field: null, anchor: null, h: 0, s: 0, v: 1 };
 
@@ -596,7 +596,7 @@
   function rememberColor(hex) {
     if (COLORS.includes(hex)) return;
     const list = [hex, ...recentColors().filter(c => c !== hex)].slice(0, 9);
-    try { localStorage.setItem(RECENT_KEY, JSON.stringify(list)); } catch (e) { /* ohne Speicher eben ohne Verlauf */ }
+    try { localStorage.setItem(RECENT_KEY, JSON.stringify(list)); } catch (e) { /* no storage, no history */ }
   }
 
   function drawPicker() {
@@ -633,7 +633,7 @@
     });
     $("cpick").hidden = false;
     drawPicker();
-    /* unter dem Knopf, am Fensterrand nach innen geschoben */
+    /* below the button, pushed inwards at the window edge */
     const r = anchor.getBoundingClientRect(), box = $("cpick").getBoundingClientRect();
     const top = r.bottom + 8 + box.height > innerHeight ? r.top - 8 - box.height : r.bottom + 8;
     $("cpick").style.left = `${Math.max(8, Math.min(r.left, innerWidth - box.width - 8))}px`;
@@ -677,7 +677,7 @@
     if (!$("cpick").hidden && !e.target.closest("#cpick") && !e.target.closest("button.custom")) closeColorPicker();
   });
   window.addEventListener("keydown", (e) => { if (e.key === "Escape" && !$("cpick").hidden) { e.preventDefault(); closeColorPicker(); } });
-  /* beim Scrollen würde das Fenster am Knopf vorbeischweben */
+  /* while scrolling the popup would float away from its button */
   document.addEventListener("scroll", (e) => { if (!e.target.closest || !e.target.closest("#cpick")) closeColorPicker(); }, true);
   window.addEventListener("resize", closeColorPicker);
 
@@ -725,13 +725,13 @@
     updateKey({ emoji });
   };
 
-  /* ---------- Anzahl und Richtung ---------- */
+  /* ---------- Count and direction ---------- */
   $("scrollMode").onclick = (e) => {
     const scroll = e.target.dataset.scroll;
     if (!scroll || scroll === page().scroll) return;
     page().scroll = scroll;
     const keys = page().keys;
-    while (keys.length % unit()) keys.push(null); /* nach rechts nur ganze Seiten */
+    while (keys.length % unit()) keys.push(null); /* to the right only whole pages */
     $("grid").scrollLeft = $("grid").scrollTop = 0;
     setDirty();
     render();
@@ -782,7 +782,7 @@
     renderEditor();
   };
 
-  /* ---------- Kombination aufnehmen ---------- */
+  /* ---------- Recording a combination ---------- */
   const KEY_NAMES = { Escape: "esc", Enter: "enter", Tab: "tab", " ": "space",
     Backspace: "backspace", Delete: "delete", Home: "home", End: "end", PageUp: "pageup", PageDown: "pagedown",
     ArrowLeft: "left", ArrowRight: "right", ArrowUp: "up", ArrowDown: "down", PrintScreen: "printscreen",
@@ -807,10 +807,10 @@
   window.addEventListener("keydown", (e) => {
     if (!recording) return;
     e.preventDefault();
-    if (MODIFIERS.includes(e.key)) return; /* auf die Haupttaste warten */
+    if (MODIFIERS.includes(e.key)) return; /* wait for the main key */
     let name = KEY_NAMES[e.key];
     if (!name && /^F\d{1,2}$/.test(e.key)) name = e.key.toLowerCase();
-    /* e.code statt e.key: Shift+1 soll „shift+1“ ergeben, nicht „!“ */
+    /* e.code rather than e.key: Shift+1 should give "shift+1", not "!" */
     if (!name && /^Key[A-Z]$/.test(e.code)) name = e.code.slice(3).toLowerCase();
     if (!name && /^Digit\d$/.test(e.code)) name = e.code.slice(5);
     if (!name) return toast(t("„{key}“ lässt sich nicht belegen", { key: e.key }), true);
@@ -820,7 +820,7 @@
     stopRecording();
   }, true);
 
-  /* ---------- Eingaben ---------- */
+  /* ---------- Inputs ---------- */
   $("pageName").oninput = (e) => { page().name = e.target.value; setDirty(); };
   $("label").oninput = (e) => updateKey({ label: e.target.value });
   $("actionType").onchange = () => { updateKey({ action: readAction() }); renderEditor(); };
@@ -852,14 +852,14 @@
   }
   $("save").onclick = save;
 
-  /* ---------- Einbettung in die PC-App ---------- */
+  /* ---------- Embedding in the PC app ---------- */
   const EMBEDDED = window.parent !== window;
   const appApi = () => { try { return window.parent.pywebview && window.parent.pywebview.api; } catch (e) { return null; } };
   document.body.classList.toggle("embedded", EMBEDDED);
   window.tastenDirty = () => dirty;
   window.tastenSave = save;
   window.tastenDiscard = () => load();
-  window.tastenReload = () => { if (!dirty) load(); };  /* beim Öffnen des Reiters frisch vom PC holen */
+  window.tastenReload = () => { if (!dirty) load(); };  /* fetch fresh from the PC when the tab opens */
   document.querySelectorAll("[data-browse]").forEach(btn => {
     btn.hidden = !appApi();
     btn.onclick = async () => {
@@ -869,7 +869,7 @@
       updateKey({ action: readAction() });
     };
   });
-  /* pywebview meldet sich im Hauptfenster erst nach dem Laden */
+  /* pywebview only announces itself in the main window after loading */
   window.parent.addEventListener && window.parent.addEventListener("pywebviewready", () =>
     document.querySelectorAll("[data-browse]").forEach(btn => btn.hidden = !appApi()));
 
@@ -878,7 +878,7 @@
     const data = await res.json();
     ICONS = data.icons;
     config = data.config;
-    selected = Math.min(selected, config.pages[0].keys.length - 1); /* Brücke füllt auf ganze Seiten/Reihen auf */
+    selected = Math.min(selected, config.pages[0].keys.length - 1); /* the bridge pads to whole pages/rows */
     if (!$("icons").children.length) buildPickers();
     setDirty(false);
     render();
@@ -886,7 +886,7 @@
   $("reload").onclick = async () => {
     if (!dirty || await askConfirm("Änderungen verwerfen?", "Alles seit dem letzten Speichern geht verloren.", "Verwerfen")) load();
   };
-  /* in der App fragt das App-Fenster selbst nach; nur im Browser der Browserdialog */
+  /* inside the app the app window asks itself; the browser dialog only in a browser */
   window.addEventListener("beforeunload", (e) => { if (dirty && !EMBEDDED) { e.preventDefault(); e.returnValue = ""; } });
 
   window.addEventListener("languagechange-app", () => { if (config) render(); });

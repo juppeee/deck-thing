@@ -1,4 +1,4 @@
-# Board-Firmware: eigene Hardware-Anbindung plus die gemeinsamen Teile aus firmware/
+# Board firmware: its own hardware layer plus the shared parts from firmware/
 set(FW ${CMAKE_CURRENT_LIST_DIR}/../..)
 file(GLOB UI_SOURCES ${FW}/ui/*.c ${FW}/ui/fonts/*.c ${FW}/ui/images/*.c)
 

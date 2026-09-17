@@ -1,10 +1,10 @@
 /**
- * Audio: Lautstärkemixer wie in Windows. Gesamt, Mikrofon und jede App mit eigener Audio-Sitzung,
- * mit Regler, Stummschalter und Live-Pegel; dazu die Wahl des Ausgabegeräts.
+ * Audio: a volume mixer like in Windows. Master, microphone and every app with its own audio session,
+ * with fader, mute and live level; plus choosing the output device.
  *
- * Zwei Darstellungen, einstellbar in der PC-App: Mischpult (senkrechte Regler, seitlich wischen)
- * oder Liste (Querregler, nach unten scrollen). Die Daten schickt die PC-App nur, solange die
- * Seite offen ist – etwa zehnmal pro Sekunde, damit die Pegel leben.
+ * Two layouts, chosen in the PC app: mixer (vertical faders, swipe sideways)
+ * or list (horizontal sliders, scroll down). The PC app only sends data while the page
+ * is open – about ten times per second so the levels move.
  */
 #include <stdio.h>
 #include <stdlib.h>
@@ -15,8 +15,8 @@
 #define MAX_APPS      16
 #define MAX_OUTPUTS   8
 #define MAX_ICONS     32
-#define HOLD_MS       1500  /* nach eigenem Verstellen die Werte vom PC so lange ignorieren */
-#define SEND_MS       80    /* Reglerbewegungen bündeln */
+#define HOLD_MS       1500  /* after a local change, ignore values from the PC this long */
+#define SEND_MS       80    /* batch fader moves */
 #define BODY_Y        TOPBAR_H
 #define BODY_H        (SCREEN_H - TOPBAR_H)
 
@@ -40,7 +40,7 @@ typedef struct {
     uint8_t level;
     uint32_t touched;
     bool pending_volume;
-    /* Widgets der aktuellen Darstellung */
+    /* widgets of the current layout */
     lv_obj_t * track;
     lv_obj_t * fill;
     lv_obj_t * meter;
@@ -68,11 +68,11 @@ typedef struct {
 
 static struct {
     lv_obj_t * view;
-    lv_obj_t * body;       /* wird bei neuer Kanalliste oder Darstellung neu gebaut */
+    lv_obj_t * body;       /* rebuilt for a new channel list or layout */
     lv_obj_t * message;
     lv_obj_t * message_title;
     lv_obj_t * message_text;
-    lv_obj_t * output_name; /* Mischpult: Name auf der Kachel */
+    lv_obj_t * output_name; /* mixer: name on the tile */
     lv_obj_t * sheet;
     channel_t out, mic;
     bool has_out, has_mic;
@@ -89,7 +89,7 @@ static struct {
     size_t icon_next;
 } au;
 
-/* ---------- Hilfen ---------- */
+/* ---------- Helpers ---------- */
 
 static void copy(char * dst, size_t size, const char * src)
 {
@@ -113,7 +113,7 @@ static const lv_image_dsc_t * icon_get(const char * id)
     return NULL;
 }
 
-/* ---------- Anzeige eines Kanals ---------- */
+/* ---------- Showing a channel ---------- */
 
 static void update_channel(channel_t * ch)
 {
@@ -149,7 +149,7 @@ static void update_icon(channel_t * ch)
     ui_set_hidden(ch->icon_letter, dsc != NULL);
 }
 
-/* ---------- Bedienung ---------- */
+/* ---------- Controls ---------- */
 
 static void send_cb(lv_timer_t * t)
 {
@@ -211,9 +211,9 @@ static void on_mute(lv_event_t * e)
     ui_send_command("audio_mute", value);
 }
 
-/* ---------- Ausgabegerät wählen ---------- */
+/* ---------- Choosing the output device ---------- */
 
-/* Auf der schmalen Kachel zählt das Modell: „Kopfhörer (USB-Headset)“ → „USB-Headset“ */
+/* On the narrow tile the model is what counts: "Kopfhörer (USB-Headset)" → "USB-Headset" */
 static void set_output_label(const char * name)
 {
     const char * open = strchr(name, '(');
@@ -273,7 +273,7 @@ static void open_sheet(lv_event_t * e)
     lv_obj_set_style_pad_all(box, 16, 0);
     lv_obj_set_flex_flow(box, LV_FLEX_FLOW_COLUMN);
     lv_obj_set_style_pad_row(box, 2, 0);
-    lv_obj_add_flag(box, LV_OBJ_FLAG_CLICKABLE); /* Tippen in die Karte schließt nicht */
+    lv_obj_add_flag(box, LV_OBJ_FLAG_CLICKABLE); /* tapping inside the card doesn't close it */
 
     lv_obj_t * title = ui_text_label(box, &fig_sb_24, COL_TEXT, "Ton ausgeben über");
     lv_obj_set_style_pad_left(title, 8, 0);
@@ -301,7 +301,7 @@ static void open_sheet(lv_event_t * e)
     }
 }
 
-/* ---------- Bausteine ---------- */
+/* ---------- Building blocks ---------- */
 
 static lv_obj_t * mute_button(lv_obj_t * parent, channel_t * ch, int32_t w, int32_t h)
 {
@@ -319,7 +319,7 @@ static lv_obj_t * mute_button(lv_obj_t * parent, channel_t * ch, int32_t w, int3
     return btn;
 }
 
-/* Programmsymbol oder, solange es fehlt, der Anfangsbuchstabe auf getönter Kachel */
+/* program icon or, while it is missing, the first letter on a tinted tile */
 static void app_icon(lv_obj_t * parent, channel_t * ch, int32_t size)
 {
     lv_obj_t * box = ui_plain_obj(parent);
@@ -331,7 +331,7 @@ static void app_icon(lv_obj_t * parent, channel_t * ch, int32_t size)
     if(ch->kind == KIND_APP) {
         char letter[5] = { 0 };
         size_t len = 1;
-        while(len < 4 && (ch->name[len] & 0xC0) == 0x80) len++; /* ganzes UTF-8-Zeichen */
+        while(len < 4 && (ch->name[len] & 0xC0) == 0x80) len++; /* whole UTF-8 character */
         memcpy(letter, ch->name, len);
         ch->icon_letter = ui_text_label(box, &fig_sb_24, ch->color, letter);
         lv_obj_center(ch->icon_letter);
@@ -346,7 +346,7 @@ static void app_icon(lv_obj_t * parent, channel_t * ch, int32_t size)
     }
 }
 
-/* Regler: fängt das Ziehen selbst ab, damit die Reihe dabei nicht mitscrollt */
+/* fader: handles dragging itself so the row doesn't scroll along */
 static lv_obj_t * track(lv_obj_t * parent, channel_t * ch, bool vertical)
 {
     ch->vertical = vertical;
@@ -395,7 +395,7 @@ static lv_obj_t * meter(lv_obj_t * parent, channel_t * ch, bool vertical)
     return m;
 }
 
-/* ---------- Mischpult ---------- */
+/* ---------- Mixer ---------- */
 
 static void mixer_channel(lv_obj_t * parent, channel_t * ch)
 {
@@ -421,7 +421,7 @@ static void mixer_channel(lv_obj_t * parent, channel_t * ch)
 
     const lv_font_t * name_font = app ? &fig_sb_20 : &fig_md_17;
     ch->name_label = ui_text_label(col, name_font, app ? COL_TEXT : COL_MUTED, ch->name);
-    /* feste Höhe = eine Zeile; nur dann kürzt LVGL mit „…“ statt umzubrechen */
+    /* fixed height = one line; only then LVGL shortens with "…" instead of wrapping */
     lv_obj_set_size(ch->name_label, lv_pct(100), lv_font_get_line_height(name_font));
     lv_obj_set_style_text_align(ch->name_label, LV_TEXT_ALIGN_CENTER, 0);
     lv_label_set_long_mode(ch->name_label, LV_LABEL_LONG_MODE_DOTS);
@@ -506,7 +506,7 @@ static void build_mixer(void)
     }
 }
 
-/* ---------- Liste ---------- */
+/* ---------- List ---------- */
 
 static void list_row(lv_obj_t * parent, channel_t * ch, bool head)
 {
@@ -611,7 +611,7 @@ static void rebuild(void)
     ui_set_hidden(au.message, true);
 }
 
-/* ---------- Schnittstelle ---------- */
+/* ---------- Interface ---------- */
 
 void ui_audio_build(lv_obj_t * view)
 {
@@ -668,7 +668,7 @@ void ui_audio_on_disconnect(void)
     show_message("Keine Verbindung zum PC", "Der Mixer erscheint, sobald das Gerät mit der PC-App verbunden ist.");
 }
 
-/* PC-Werte übernehmen, außer der Kanal wurde gerade am Gerät verstellt */
+/* take the PC's values unless the channel was just changed on the device */
 static void take(channel_t * dst, const ui_audio_channel_t * src, kind_t kind, bool same)
 {
     bool held = same && lv_tick_elaps(dst->touched) < HOLD_MS;
@@ -694,7 +694,7 @@ void ui_set_audio(const ui_audio_t * audio)
     if(audio == NULL) return;
     au.loaded = true;
 
-    /* Kennung aller Kanäle + Darstellung: nur bei Änderung neu bauen, sonst Werte nachführen */
+    /* ids of all channels + layout: rebuild only on a change, otherwise update the values */
     char sig[sizeof(au.signature)];
     int n = snprintf(sig, sizeof(sig), "%d|%s|%s|%s", audio->list_layout,
                      audio->out ? audio->out->id : "-", audio->out ? audio->out->sub : "",
@@ -714,7 +714,7 @@ void ui_set_audio(const ui_audio_t * audio)
     if(au.has_mic) take(&au.mic, audio->mic, KIND_MIC, same);
     size_t count = LV_MIN(audio->app_count, MAX_APPS);
     for(size_t i = 0; i < count; i++) {
-        /* gleiche App an gleicher Stelle behält ihren Bedienzustand */
+        /* the same app in the same spot keeps its interaction state */
         take(&au.apps[i], &audio->apps[i], KIND_APP, same);
     }
     au.app_count = count;
@@ -747,7 +747,7 @@ void ui_put_audio_icon(const char * id, uint16_t w, uint16_t h, const uint8_t * 
     icon_t * slot = &au.icons[au.icon_next];
     au.icon_next = (au.icon_next + 1) % MAX_ICONS;
     if(slot->data != NULL) {
-        /* verdrängtes Symbol erst aus den Kanälen lösen */
+        /* detach an evicted icon from the channels first */
         channel_t * all[MAX_APPS];
         for(size_t i = 0; i < au.app_count; i++) all[i] = &au.apps[i];
         for(size_t i = 0; i < au.app_count; i++) {
@@ -773,7 +773,7 @@ void ui_put_audio_icon(const char * id, uint16_t w, uint16_t h, const uint8_t * 
     for(size_t i = 0; i < au.app_count; i++) update_icon(&au.apps[i]);
 }
 
-/* Knauf: drehen = Gesamtlautstärke, drücken = Gesamt stumm */
+/* knob: turn = master volume, press = mute master */
 void ui_audio_knob_rotate(int32_t steps)
 {
     if(!au.has_out || au.out.track == NULL) return;

@@ -11,14 +11,14 @@
 #include "link.h"
 
 #define RX_CHUNK        2048
-#define SILENCE_MS      4000   /* die PC-App schickt alle 0,5 s den Wiedergabestand – so lange Ruhe = getrennt */
+#define SILENCE_MS      4000   /* the PC app sends the playback state every 0.5 s – this much silence = disconnected */
 #define HELLO_EVERY_MS  2000
 
 static const char * TAG = "usb_link";
 
 void usb_link_send(const uint8_t * data, size_t len)
 {
-    /* kurz warten statt blockieren: liest am PC niemand mit, sollen Oberfläche und Empfang nicht hängen */
+    /* wait briefly instead of blocking: if nobody reads on the PC, interface and receive must not hang */
     usb_serial_jtag_write_bytes(data, len, pdMS_TO_TICKS(50));
 }
 
@@ -44,16 +44,16 @@ static void usb_task(void * arg)
                 connected = true;
                 link_set_connected(true);
                 link_send_hello();
-                ESP_LOGI(TAG, "PC-App verbunden");
+                ESP_LOGI(TAG, "PC app connected");
             }
             link_feed(buf, (size_t)n);
         }
         else if(connected && now - last_rx > SILENCE_MS) {
             connected = false;
             link_set_connected(false);
-            ESP_LOGI(TAG, "PC-App getrennt");
+            ESP_LOGI(TAG, "PC app disconnected");
         }
-        /* solange keine App spricht, regelmäßig melden – sie öffnet den Port womöglich erst später */
+        /* while no app talks, say hello regularly – it may open the port later */
         if(!connected && now - last_hello > HELLO_EVERY_MS) {
             last_hello = now;
             link_send_hello();
@@ -63,13 +63,13 @@ static void usb_task(void * arg)
 
 void usb_link_start(void)
 {
-    /* Beide Ringpuffer klein genug, dass sie im internen RAM landen (größere Blöcke gehen ins PSRAM).
-       Der Treiber füllt sie aus dem Interrupt – aus PSRAM war das zu langsam und löste mit dem
-       Display-Interrupt den Watchdog aus. Große Rahmen kommen trotzdem an, nur in mehr Stücken. */
+    /* Both ring buffers small enough to land in internal RAM (larger blocks go to PSRAM).
+       The driver fills them from the interrupt – from PSRAM that was too slow and, together with the
+       display interrupt, tripped the watchdog. Large frames still arrive, just in more pieces. */
     usb_serial_jtag_driver_config_t cfg = {
         .tx_buffer_size = 4096,
         .rx_buffer_size = 8192,
     };
     ESP_ERROR_CHECK(usb_serial_jtag_driver_install(&cfg));
-    xTaskCreatePinnedToCore(usb_task, "usb_link", 8192, NULL, 6, NULL, 0); /* Kern 0, getrennt vom Display */
+    xTaskCreatePinnedToCore(usb_task, "usb_link", 8192, NULL, 6, NULL, 0); /* core 0, apart from the display */
 }

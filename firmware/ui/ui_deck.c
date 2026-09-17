@@ -1,12 +1,12 @@
 /**
- * Tastenseite (Stream-Deck-Modus): frei belegbare Tasten, deren Aktionen die PC-App ausführt
- * (Tastenkombination, Programm, Skript, Link, Medien). Belegung kommt von der PC-App.
+ * Key page (Stream Deck mode): freely assignable keys whose actions the PC app runs
+ * (key combination, program, script, link, media). The layout comes from the PC app.
  *
- * Sichtbar sind 4 × 2 Tasten. Weitere folgen je nach Einstellung als ganze Seiten nach rechts
- * (wischen, rastet seitenweise ein) oder als Reihen nach unten (rastet reihenweise ein).
+ * 4 × 2 keys are visible. Depending on the setting, more follow as whole pages to the right
+ * (swipe, snaps page by page) or as rows below (snaps row by row).
  *
- * Symbol ist entweder ein Lucide-Zeichen aus der eingebauten Schrift oder ein Bild, das die PC-App
- * fertig gerechnet schickt (Emoji oder eigenes Bild, RGB565 mit Alphakanal).
+ * The icon is either a Lucide glyph from the built-in font or a picture the PC app sends
+ * ready-made (emoji or own picture, RGB565 with alpha channel).
  */
 #include <stdio.h>
 #include <stdlib.h>
@@ -22,22 +22,22 @@
 #define KEY_GAP   16
 #define KEY_W     ((SCREEN_W - 2 * GRID_X - 3 * KEY_GAP) / 4)
 #define KEY_H     150
-#define PAGE_W    (COLUMNS * (KEY_W + KEY_GAP)) /* eine Seite nach rechts */
-#define ROW_H     (KEY_H + KEY_GAP)             /* eine Reihe nach unten */
+#define PAGE_W    (COLUMNS * (KEY_W + KEY_GAP)) /* one page to the right */
+#define ROW_H     (KEY_H + KEY_GAP)             /* one row down */
 #define ICON_SIZE 56
 #define DOT_SIZE  8
 
 typedef struct {
     char label[48];
     char icon[24];
-    char icon_id[17];       /* leer = Lucide-Zeichen, sonst Bild von der PC-App */
+    char icon_id[17];       /* empty = Lucide glyph, else a picture from the PC app */
     lv_color_t color;
     lv_color_t text_color;
     bool icon_fill;
     bool empty;
     lv_obj_t * button;
     lv_obj_t * icon_label;  /* Lucide */
-    lv_obj_t * image;       /* Emoji oder eigenes Bild */
+    lv_obj_t * image;       /* emoji or own picture */
     lv_obj_t * text;
     lv_image_dsc_t dsc;
     uint8_t * pixels;
@@ -59,7 +59,7 @@ static struct {
     bool focus_visible;
 } dk;
 
-/* Symbolnamen aus der Belegung (Lucide) → Zeichen in lc_48 */
+/* icon names from the layout (Lucide) → glyphs in lc_48 */
 static const struct {
     const char * name;
     const char * glyph;
@@ -81,7 +81,7 @@ static const char * glyph_for(const char * name)
     for(size_t i = 0; i < sizeof(ICONS) / sizeof(ICONS[0]); i++) {
         if(strcmp(ICONS[i].name, name) == 0) return ICONS[i].glyph;
     }
-    return ICONS[0].glyph; /* unbekannt: Tastatur */
+    return ICONS[0].glyph; /* unknown: keyboard */
 }
 
 static void show_message(const char * title, const char * text)
@@ -94,7 +94,7 @@ static void show_message(const char * title, const char * text)
     ui_set_hidden(dk.title, true);
 }
 
-/* Bildpuffer erst freigeben, wenn kein Objekt mehr darauf zeigt (nach lv_obj_clean) */
+/* free picture buffers only once no object points at them (after lv_obj_clean) */
 static void free_pixels(deck_key_t * key)
 {
     if(key->pixels == NULL) return;
@@ -113,7 +113,7 @@ static void clear_keys(void)
     dk.focus_visible = false;
 }
 
-/* ---------- Blättern ---------- */
+/* ---------- Paging ---------- */
 
 static int32_t scroll_pitch(void)
 {
@@ -125,7 +125,7 @@ static int32_t scroll_pos(void)
     return dk.vertical ? lv_obj_get_scroll_y(dk.grid) : lv_obj_get_scroll_x(dk.grid);
 }
 
-/* Anzahl Raststellen: Seiten nach rechts bzw. oberste Reihe 0 … Reihen−2 nach unten */
+/* number of snap stops: pages to the right, or top row 0 … rows−2 downwards */
 static int stop_count(void)
 {
     if(dk.vertical) {
@@ -174,7 +174,7 @@ static void build_dots(void)
     update_dots();
 }
 
-/* nach dem Wischen auf die nächste ganze Seite bzw. Reihe einrasten */
+/* after a swipe, snap to the nearest whole page or row */
 static void on_scroll_end(lv_event_t * e)
 {
     LV_UNUSED(e);
@@ -198,16 +198,16 @@ static void make_visible(int index)
     }
 }
 
-/* ---------- Drücken ---------- */
+/* ---------- Pressing ---------- */
 
 static void set_key_lit(deck_key_t * key, bool lit)
 {
     if(key->empty) return;
-    /* gedrückt: Taste leuchtet in ihrer Farbe, Symbol und Text werden dunkel (Bilder bleiben, wie sie sind) */
+    /* pressed: the key lights up in its colour, icon and text turn dark (pictures stay as they are) */
     lv_obj_set_style_bg_color(key->button, lit ? key->color : COL_SURFACE, 0);
     if(key->icon_label) lv_obj_set_style_text_color(key->icon_label, lit ? COL_INK : key->color, 0);
     if(key->icon_fill && key->image) {
-        /* Bild über die ganze Taste: halb durchsichtig, die Tastenfarbe scheint durch; Schrift bleibt hell */
+        /* whole-key picture: half transparent, the key colour shines through; the text stays light */
         lv_obj_set_style_image_opa(key->image, lit ? LV_OPA_50 : LV_OPA_COVER, 0);
         return;
     }
@@ -235,7 +235,7 @@ static void unlight_cb(lv_timer_t * t)
     set_key_lit(lv_timer_get_user_data(t), false);
 }
 
-/* ---------- Knauf ---------- */
+/* ---------- Knob ---------- */
 
 static void update_focus(void)
 {
@@ -260,7 +260,7 @@ void ui_deck_knob_rotate(int32_t steps)
 {
     if(dk.count == 0 || lv_obj_has_flag(dk.grid, LV_OBJ_FLAG_HIDDEN)) return;
     if(!dk.focus_visible) {
-        /* erster Dreh zeigt nur den Rahmen, auf der ersten belegten Taste der gerade sichtbaren Seite */
+        /* the first turn only shows the frame, on the first assigned key of the visible page */
         int start = current_stop() * (dk.vertical ? COLUMNS : PAGE_KEYS);
         int first = first_active_from(start);
         if(first < 0) return;
@@ -268,7 +268,7 @@ void ui_deck_knob_rotate(int32_t steps)
         dk.focus_visible = true;
     }
     else {
-        /* leere Felder überspringen; am Rand stehen bleiben */
+        /* skip empty slots; stop at the edge */
         int dir = steps > 0 ? 1 : -1;
         for(int32_t n = LV_ABS(steps); n > 0; n--) {
             int next = dk.focus + dir;
@@ -287,12 +287,12 @@ void ui_deck_knob_press(void)
     deck_key_t * key = &dk.keys[dk.focus];
     if(key->empty) return;
     set_key_lit(key, true);
-    lv_timer_t * t = lv_timer_create(unlight_cb, 160, key); /* kurz aufleuchten wie beim Antippen */
+    lv_timer_t * t = lv_timer_create(unlight_cb, 160, key); /* light up briefly like a tap */
     lv_timer_set_repeat_count(t, 1);
     trigger((size_t)dk.focus);
 }
 
-/* ---------- Aufbau ---------- */
+/* ---------- Layout ---------- */
 
 void ui_deck_build(lv_obj_t * view)
 {
@@ -302,9 +302,9 @@ void ui_deck_build(lv_obj_t * view)
     dk.title = ui_text_label(view, &fig_sb_28, COL_TEXT, "");
     lv_obj_set_pos(dk.title, GRID_X, 76);
 
-    /* 8 px Innenabstand rundherum: der Knauf-Rahmen (4 px Abstand + 4 px Breite) ragt über die Taste
-       und würde sonst am Rasterrand abgeschnitten – die Tasten selbst bleiben an ihrem Platz.
-       Sichtbar sind genau 4 × 2 Tasten; was darüber hinausgeht, wird gescrollt. */
+    /* 8 px padding all round: the knob frame (4 px gap + 4 px width) sticks out over the key
+       and would be clipped at the grid edge otherwise – the keys themselves stay in place.
+       Exactly 4 × 2 keys are visible; anything beyond that scrolls. */
     dk.grid = ui_plain_obj(view);
     lv_obj_set_pos(dk.grid, GRID_X - 8, GRID_Y - 8);
     lv_obj_set_size(dk.grid, SCREEN_W - 2 * GRID_X + 16, 2 * KEY_H + KEY_GAP + 16);
@@ -336,7 +336,7 @@ void ui_deck_build(lv_obj_t * view)
 
 static void build_key(deck_key_t * key, size_t index)
 {
-    /* Seiten nach rechts: Seite für Seite je 4 × 2; nach unten: Reihe für Reihe */
+    /* pages to the right: page by page, 4 × 2 each; downwards: row by row */
     int32_t x, y;
     if(dk.vertical) {
         x = (int32_t)(index % COLUMNS) * (KEY_W + KEY_GAP);
@@ -352,7 +352,7 @@ static void build_key(deck_key_t * key, size_t index)
     key->image = NULL;
     key->text = NULL;
     if(key->empty) {
-        /* leeres Feld: nur ein dezenter Rahmen, damit die Positionen erhalten bleiben */
+        /* empty slot: only a subtle outline so the positions stay */
         lv_obj_t * slot = ui_plain_obj(dk.grid);
         lv_obj_remove_flag(slot, LV_OBJ_FLAG_CLICKABLE);
         lv_obj_set_size(slot, KEY_W, KEY_H);
@@ -379,7 +379,7 @@ static void build_key(deck_key_t * key, size_t index)
     key->button = btn;
 
     if(key->icon_id[0] && key->icon_fill) {
-        /* Bild als Hintergrund der ganzen Taste (Ecken rund vom PC), Beschriftung unten darüber */
+        /* picture as background of the whole key (corners rounded by the PC), label on top at the bottom */
         key->image = lv_image_create(btn);
         lv_obj_remove_flag(key->image, LV_OBJ_FLAG_CLICKABLE);
         lv_obj_add_flag(key->image, LV_OBJ_FLAG_IGNORE_LAYOUT);
@@ -389,14 +389,14 @@ static void build_key(deck_key_t * key, size_t index)
         lv_obj_set_style_pad_bottom(btn, 12, 0);
     }
     else if(key->icon_id[0]) {
-        /* Platz schon jetzt freihalten; das Bild kommt direkt hinter der Belegung */
+        /* keep the space now; the picture follows right after the layout */
         key->image = lv_image_create(btn);
         lv_obj_remove_flag(key->image, LV_OBJ_FLAG_CLICKABLE);
         lv_obj_set_size(key->image, ICON_SIZE, ICON_SIZE);
     }
     else {
         key->icon_label = ui_text_label(btn, &lc_48, key->color, glyph_for(key->icon));
-        /* gleich hoch wie ein Bildsymbol, damit alle Beschriftungen auf einer Linie stehen */
+        /* as tall as a picture icon so all labels line up */
         lv_obj_set_height(key->icon_label, ICON_SIZE);
         lv_obj_set_style_pad_top(key->icon_label, (ICON_SIZE - lv_font_get_line_height(&lc_48)) / 2, 0);
     }
@@ -407,7 +407,7 @@ static void build_key(deck_key_t * key, size_t index)
     set_key_lit(key, false);
 }
 
-/* ---------- Daten ---------- */
+/* ---------- Data ---------- */
 
 void ui_set_keys(const char * page_name, bool vertical, const ui_key_t * keys, size_t count)
 {
@@ -437,7 +437,7 @@ void ui_set_keys(const char * page_name, bool vertical, const ui_key_t * keys, s
         dk.count++;
     }
     lv_obj_update_layout(dk.grid);
-    /* bei neuer Richtung vorn anfangen, sonst dort bleiben, wo man war (Belegung kann nach jedem Speichern kommen) */
+    /* start at the front for a new direction, else stay where you were (a layout can arrive after every save) */
     if(mode_changed) lv_obj_scroll_to(dk.grid, 0, 0, LV_ANIM_OFF);
     else scroll_to_stop(current_stop(), LV_ANIM_OFF);
     lv_label_set_text(dk.title, page_name ? page_name : "");
@@ -449,7 +449,7 @@ void ui_set_keys(const char * page_name, bool vertical, const ui_key_t * keys, s
 
 void ui_put_key_icon(const char * id, uint16_t w, uint16_t h, const uint8_t * data, size_t len)
 {
-    if(len != (size_t)w * h * 3) return; /* RGB565 (2 Byte) + Alpha (1 Byte) je Pixel */
+    if(len != (size_t)w * h * 3) return; /* RGB565 (2 bytes) + alpha (1 byte) per pixel */
     for(size_t i = 0; i < dk.count; i++) {
         deck_key_t * key = &dk.keys[i];
         if(key->empty || key->image == NULL || strcmp(key->icon_id, id) != 0) continue;
@@ -477,7 +477,7 @@ void ui_deck_on_show(void)
         show_message("Keine Verbindung zum PC", "Die Tasten erscheinen, sobald das Gerät mit der PC-App verbunden ist.");
         return;
     }
-    if(dk.requested) return; /* Belegung einmal pro Verbindung holen; Änderungen schickt die PC-App von selbst */
+    if(dk.requested) return; /* fetch the layout once per connection; the PC app pushes changes by itself */
     if(!dk.loaded) show_message("Tasten werden geladen …", "");
     dk.requested = true;
     ui_send_command("keys", NULL);

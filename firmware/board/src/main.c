@@ -1,19 +1,19 @@
 /**
- * Deck Thing – Firmware für das Waveshare ESP32-S3-Touch-LCD-4.3.
+ * Deck Thing – firmware for the Waveshare ESP32-S3-Touch-LCD-4.3.
  *
- * Bindet die gemeinsame Oberfläche (../../ui) an die Hardware: RGB-Panel, GT911-Touch,
- * CH422G für Resets und Hintergrundbeleuchtung, und die Verbindung zur PC-App über USB.
- * Der Knauf ist vorerst nicht angebunden (siehe README).
+ * Connects the shared interface (../../ui) to the hardware: RGB panel, GT911 touch,
+ * CH422G for resets and backlight, and the link to the PC app over USB.
+ * The knob is not connected yet (see README).
  *
- * Kernaufteilung: Display, LVGL und Oberfläche auf Kern 1, USB-Empfang auf Kern 0.
- * Der Display-Interrupt kopiert 60-mal pro Sekunde Bildzeilen um; lief er auf demselben Kern wie
- * der USB-Empfang, schlug beim ersten Cover der Interrupt-Watchdog zu und das Board startete neu.
+ * Core split: display, LVGL and interface on core 1, USB receive on core 0.
+ * The display interrupt copies picture lines 60 times per second; when it ran on the same core as
+ * USB receive, the interrupt watchdog fired on the first cover and the board rebooted.
  *
- * Gegen Tearing beim Wischen zeichnet LVGL direkt in zwei Bildpuffer des Panels, und das Panel
- * wechselt erst zum nächsten Bild auf den fertigen. Vorbild ist Waveshares lvgl_port (12_lvgl_transplant,
- * Modus 3) und "avoid_tearing" aus Espressifs esp_lvgl_port. Wichtig mit Bounce-Buffer: auf
- * on_frame_buf_complete warten, nicht auf VSYNC – der Bounce-Buffer liest schon vor dem VSYNC
- * weiter, sonst zeichnet LVGL in den Puffer, der gerade angezeigt wird (Flackern).
+ * Against tearing while swiping, LVGL draws straight into two frame buffers of the panel, and the
+ * panel only switches to the finished one at the next frame. Modelled on Waveshare's lvgl_port
+ * (12_lvgl_transplant, mode 3) and "avoid_tearing" from Espressif's esp_lvgl_port. With a bounce
+ * buffer, wait for on_frame_buf_complete, not VSYNC – the bounce buffer reads ahead before VSYNC,
+ * otherwise LVGL draws into the buffer that is on screen (flicker).
  */
 #include <stdio.h>
 #include <stdlib.h>
@@ -66,7 +66,7 @@ static void i2c_init(void)
     ESP_ERROR_CHECK(i2c_new_master_bus(&cfg, &i2c_bus));
 }
 
-/* GT911 wählt seine Adresse über INT beim Loslassen des Resets: low = 0x5D */
+/* GT911 picks its address from INT when reset is released: low = 0x5D */
 static void touch_reset(void)
 {
     gpio_config_t io = {
@@ -83,7 +83,7 @@ static void touch_reset(void)
     gpio_config(&io);
 }
 
-/* läuft im Interrupt: das Panel hat ein Bild fertig gelesen und den neuen Puffer übernommen */
+/* runs in the interrupt: the panel finished reading a frame and took over the new buffer */
 static IRAM_ATTR bool on_frame_done(esp_lcd_panel_handle_t p, const esp_lcd_rgb_panel_event_data_t * edata, void * ctx)
 {
     (void)p;
@@ -94,7 +94,7 @@ static IRAM_ATTR bool on_frame_done(esp_lcd_panel_handle_t p, const esp_lcd_rgb_
     return woken == pdTRUE;
 }
 
-/* Muss auf GUI_CORE laufen: der Panel-Interrupt wird auf dem Kern angelegt, der das Panel erzeugt */
+/* Must run on GUI_CORE: the panel interrupt is allocated on the core that creates the panel */
 static void lcd_init(void)
 {
     ch422g_set(EXIO_LCD_RST, false);
@@ -119,7 +119,7 @@ static void lcd_init(void)
         .data_width = 16,
         .bits_per_pixel = 16,
         .num_fbs = 2,
-        /* Umweg über einen kleinen Puffer im internen RAM: Bild bleibt ruhig, wenn PSRAM beschäftigt ist */
+        /* detour through a small buffer in internal RAM: the picture stays calm while PSRAM is busy */
         .bounce_buffer_size_px = LCD_H_RES * 10,
         .hsync_gpio_num = LCD_GPIO_HSYNC,
         .vsync_gpio_num = LCD_GPIO_VSYNC,
@@ -138,7 +138,7 @@ static void lcd_init(void)
     ESP_ERROR_CHECK(esp_lcd_rgb_panel_register_event_callbacks(panel, &cbs, NULL));
 }
 
-/* Uhr vom PC übernehmen – das Board hat keine eigene */
+/* take the time from the PC – the board has no clock of its own */
 static void set_clock(int64_t unix_seconds, int32_t utc_offset_seconds)
 {
     struct timeval now;
@@ -150,7 +150,7 @@ static void set_clock(int64_t unix_seconds, int32_t utc_offset_seconds)
     static int32_t current_offset = -1;
     if(utc_offset_seconds != current_offset) {
         current_offset = utc_offset_seconds;
-        /* POSIX-Zeitzone: Vorzeichen umgekehrt, "UTC-2:00" bedeutet zwei Stunden vor UTC */
+        /* POSIX time zone: sign inverted, "UTC-2:00" means two hours ahead of UTC */
         int32_t a = utc_offset_seconds < 0 ? -utc_offset_seconds : utc_offset_seconds;
         char tz[24];
         snprintf(tz, sizeof(tz), "UTC%c%d:%02d", utc_offset_seconds >= 0 ? '-' : '+', (int)(a / 3600), (int)(a % 3600 / 60));
@@ -166,14 +166,14 @@ static uint32_t tick_ms(void)
     return (uint32_t)(esp_timer_get_time() / 1000);
 }
 
-/* px ist einer der Panel-Puffer: draw_bitmap kopiert dann nichts, sondern schaltet nur um */
+/* px is one of the panel buffers: draw_bitmap then copies nothing and just switches */
 static void flush_cb(lv_display_t * disp, const lv_area_t * area, uint8_t * px)
 {
     LV_UNUSED(area);
     if(lv_display_flush_is_last(disp)) {
         esp_lcd_panel_draw_bitmap(panel, 0, 0, LCD_H_RES, LCD_V_RES, px);
-        xSemaphoreTake(frame_sem, 0); /* erst nach dem Umschalten alte Meldungen verwerfen, sonst kommt eine zu früh */
-        xSemaphoreTake(frame_sem, pdMS_TO_TICKS(100)); /* erst weiterzeichnen, wenn das Panel umgeschaltet hat */
+        xSemaphoreTake(frame_sem, 0); /* drop stale signals only after switching, or one arrives too early */
+        xSemaphoreTake(frame_sem, pdMS_TO_TICKS(100)); /* keep drawing only once the panel has switched */
     }
     lv_display_flush_ready(disp);
 }
@@ -192,7 +192,7 @@ static void touch_read_cb(lv_indev_t * indev, lv_indev_data_t * data)
     data->state = pressed ? LV_INDEV_STATE_PRESSED : LV_INDEV_STATE_RELEASED;
 }
 
-/* Richtet Display, Touch und Oberfläche auf GUI_CORE ein und bleibt dann als LVGL-Schleife dort */
+/* Sets up display, touch and interface on GUI_CORE and then stays there as the LVGL loop */
 static void gui_task(void * arg)
 {
     LV_UNUSED(arg);
@@ -200,7 +200,7 @@ static void gui_task(void * arg)
     lcd_init();
     uint8_t touch_addr = 0;
     touch_ok = gt911_init(i2c_bus, &touch_addr) == ESP_OK;
-    if(!touch_ok) ESP_LOGE(TAG, "GT911 nicht gefunden");
+    if(!touch_ok) ESP_LOGE(TAG, "GT911 not found");
 
     lv_init();
     lv_tick_set_cb(tick_ms);
@@ -219,10 +219,10 @@ static void gui_task(void * arg)
     link_init(usb_link_send, set_clock, HELLO);
     usb_link_start();
 
-    /* erstes Bild zeichnen, bevor die Beleuchtung angeht – kein Rauschen beim Einschalten */
+    /* draw the first frame before the backlight comes on – no noise at power-up */
     lv_refr_now(disp);
     ch422g_set(EXIO_LCD_BL, true);
-    ESP_LOGI(TAG, "läuft; Touch %s, freier PSRAM %u kB, internes RAM %u kB", touch_ok ? "ok" : "fehlt",
+    ESP_LOGI(TAG, "running; touch %s, free PSRAM %u kB, internal RAM %u kB", touch_ok ? "ok" : "missing",
              (unsigned)(heap_caps_get_free_size(MALLOC_CAP_SPIRAM) / 1024),
              (unsigned)(heap_caps_get_free_size(MALLOC_CAP_INTERNAL) / 1024));
 
@@ -235,6 +235,6 @@ static void gui_task(void * arg)
 void app_main(void)
 {
     i2c_init();
-    if(ch422g_init(i2c_bus) != ESP_OK) ESP_LOGE(TAG, "CH422G antwortet nicht - Beleuchtung und Resets fehlen");
+    if(ch422g_init(i2c_bus) != ESP_OK) ESP_LOGE(TAG, "CH422G not answering - no backlight and resets");
     xTaskCreatePinnedToCore(gui_task, "gui", GUI_STACK, NULL, 5, NULL, GUI_CORE);
 }

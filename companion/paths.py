@@ -1,6 +1,6 @@
-"""Wo die App ihre Daten ablegt: ~/.deck-thing (Tastenbelegung, Bilder, Spotify-Anmeldung, Einstellungen, Protokoll).
+"""Where the app keeps its data: ~/.deck-thing (key layout, pictures, Spotify login, settings, log).
 
-Nie im Programm- oder Projektordner – so überlebt alles Updates und landet nicht versehentlich im Repo.
+Never in the program or project folder – so everything survives updates and never lands in the repo by accident.
 """
 
 from __future__ import annotations
@@ -10,12 +10,12 @@ import shutil
 from pathlib import Path
 
 DATA_DIR = Path.home() / ".deck-thing"
-SETTINGS_FILE = DATA_DIR / "settings.json"  # schreibt das App-Fenster, die Brücke liest nur
-_LEGACY_DIR = Path.home() / ".carthing-pc"  # Ordnername aus der Entwurfsphase
+SETTINGS_FILE = DATA_DIR / "settings.json"  # written by the app window, the bridge only reads it
+_LEGACY_DIR = Path.home() / ".carthing-pc"  # folder name from the draft phase
 
 
 def _migrate() -> None:
-    """Einmalig übernehmen, was der Entwurf schon angelegt hat (kopieren, das Original bleibt liegen)."""
+    """Take over once what the draft already created (copy; the original stays where it is)."""
     if DATA_DIR.exists() or not _LEGACY_DIR.is_dir():
         return
     try:
@@ -27,7 +27,7 @@ def _migrate() -> None:
 _migrate()
 
 
-# Welche Seiten das Gerät oben als Reiter zeigt; mindestens eine bleibt an
+# Which pages the device shows as tabs at the top; at least one stays on
 DEFAULT_PAGES = {"music": True, "playlists": True, "keys": True, "audio": True}
 AUDIO_LAYOUTS = ("mixer", "list")
 

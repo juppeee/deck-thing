@@ -1,6 +1,6 @@
 /**
- * Windows-Simulator: öffnet die Geräte-Oberfläche in einem 800×480-Fenster.
- * Maus = Touch, Mausrad = Knauf drehen, mittlere Maustaste = Knauf drücken.
+ * Windows simulator: opens the device interface in an 800×480 window.
+ * Mouse = touch, mouse wheel = turn the knob, middle button = press the knob.
  */
 #include <windows.h>
 
@@ -19,7 +19,7 @@ int main(void)
     lv_indev_t * knob = lv_windows_acquire_encoder_indev(display);
 
     ui_init(display, knob);
-    bridge_client_start(); /* verbindet sich mit bridge.py, sobald sie läuft */
+    bridge_client_start(); /* connects to bridge.py as soon as it runs */
 
     for(;;) {
         uint32_t wait_ms = lv_timer_handler();

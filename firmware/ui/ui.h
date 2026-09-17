@@ -1,8 +1,8 @@
 /**
- * Geräte-Oberfläche (LVGL 9). Läuft unverändert im Windows-Simulator und auf dem ESP32-S3.
+ * Device interface (LVGL 9). Runs unchanged in the Windows simulator and on the ESP32-S3.
  *
- * Die Plattform ruft ui_init() einmal auf und meldet danach Knauf, Verbindung und neue Daten.
- * Solange keine Daten vom PC kommen, zeigt die Oberfläche Beispieltitel.
+ * The platform calls ui_init() once and then reports knob, connection and new data.
+ * Until data arrives from the PC, the interface shows sample tracks.
  */
 #pragma once
 
@@ -12,69 +12,69 @@
 
 #include "lvgl.h"
 
-/** Ein Interpret mit Spotify-ID (für die Künstlerseite). */
+/** An artist with Spotify id (for the artist page). */
 typedef struct {
     const char * id;
     const char * name;
 } ui_artist_ref_t;
 
-/** Zustand der Wiedergabe, wie ihn die PC-App schickt. */
+/** Playback state as the PC app sends it. */
 typedef struct {
-    const ui_artist_ref_t * artist_refs; /* nur mit Spotify-Login; sonst NULL */
+    const ui_artist_ref_t * artist_refs; /* only with a Spotify login; else NULL */
     size_t artist_ref_count;
-    const char * title;     /* Songtitel */
+    const char * title;     /* song title */
     const char * artists;   /* „Lena Kessler, Mira Holt, Jonas Feld“ */
-    const char * context;   /* Herkunft, z. B. „Lieblingssongs“; leer = ausblenden */
-    float pos_s;            /* Position in Sekunden */
-    float dur_s;            /* Länge in Sekunden */
+    const char * context;   /* context, e.g. "Lieblingssongs"; empty = hide */
+    float pos_s;            /* position in seconds */
+    float dur_s;            /* length in seconds */
     bool playing;
-    uint8_t shuffle;        /* 0 aus, 1 Zufall, 2 Smart Shuffle */
-    uint8_t repeat;         /* 0 aus, 1 Playlist, 2 Titel */
-    bool spotify_login;     /* ohne Login gibt es keinen Like-Button */
-    int8_t liked;           /* -1 gerade unbekannt (z. B. kurz nach Songwechsel), 0 nein, 1 ja */
-    int8_t volume;          /* 0–100, -1 unbekannt */
+    uint8_t shuffle;        /* 0 off, 1 shuffle, 2 Smart Shuffle */
+    uint8_t repeat;         /* 0 off, 1 playlist, 2 track */
+    bool spotify_login;     /* no like button without a login */
+    int8_t liked;           /* -1 unknown right now (e.g. just after a track change), 0 no, 1 yes */
+    int8_t volume;          /* 0–100, -1 unknown */
     bool muted;
-    lv_color_t color;       /* Grundfarbe des Covers für den Hintergrundverlauf */
+    lv_color_t color;       /* base colour of the cover for the background gradient */
 } ui_playback_t;
 
-/** Oberfläche aufbauen. knob darf NULL sein (kein Knauf angeschlossen). */
+/** Build the interface. knob may be NULL (no knob connected). */
 void ui_init(lv_display_t * display, lv_indev_t * knob);
 
-/** Knauf vom echten Gerät: Rastschritte (+ = lauter) und Drücken. */
+/** Knob on the real device: detent steps (+ = louder) and press. */
 void ui_knob_rotate(int32_t steps);
 void ui_knob_press(void);
 
-/** Knauf an- oder abgesteckt (blendet die Lautstärketaste ein/aus). */
+/** Knob plugged in or out (shows/hides the volume button). */
 void ui_set_knob_present(bool present);
 
-/** Verbindung zur PC-App hergestellt oder verloren (verloren = zurück zu den Beispieltiteln). */
+/** Link to the PC app established or lost (lost = back to the sample tracks). */
 void ui_set_connected(bool connected);
 
-/** Neuer Wiedergabestand von der PC-App. */
+/** New playback state from the PC app. */
 void ui_set_playback(const ui_playback_t * pb);
 
-/** Cover als JPEG (240×240). Die Daten werden kopiert. */
+/** Cover as JPEG (240×240). The data is copied. */
 void ui_set_cover_jpeg(const uint8_t * data, size_t len);
 
-/** Hinweis statt Wiedergabe, z. B. „Spotify ist nicht geöffnet“; title = NULL blendet ihn aus. */
+/** A hint instead of playback, e.g. "Spotify ist nicht geöffnet"; title = NULL hides it. */
 void ui_set_status_message(const char * title, const char * text);
 
-/** Kurze Meldung unter Titel und Interpreten. */
+/** Short message below title and artists. */
 void ui_toast(const char * text);
 
-/** Eine Karte der Bibliothek. */
+/** One card of the playlists page. */
 typedef struct {
     const char * name;
-    const char * sub;       /* z. B. Besitzer der Playlist */
-    const char * uri;       /* spotify:playlist:… oder "liked" */
-    const char * image_id;  /* 16 Zeichen, Bild kommt getrennt über ui_put_image(); leer = kein Bild */
-    bool liked_songs;       /* Lieblingssongs: eigene Kachel statt Bild */
+    const char * sub;       /* e.g. owner of the playlist */
+    const char * uri;       /* spotify:playlist:… or "liked" */
+    const char * image_id;  /* 16 chars, the picture comes separately via ui_put_image(); empty = no picture */
+    bool liked_songs;       /* Liked Songs: its own tile instead of a picture */
 } ui_library_item_t;
 
-/** Playlists von der PC-App; spotify_login = false zeigt den Hinweis zum Verbinden. */
+/** Playlists from the PC app; spotify_login = false shows the hint to connect. */
 void ui_set_library(const ui_library_item_t * items, size_t count, bool spotify_login);
 
-/** Album oder Single auf der Künstlerseite. */
+/** Album or single on the artist page. */
 typedef struct {
     const char * name;
     const char * type;      /* „Album“, „Single“, „Compilation“ */
@@ -83,49 +83,49 @@ typedef struct {
     const char * image_id;
 } ui_album_t;
 
-/** Antwort der PC-App auf eine Künstleranfrage. */
+/** The PC app's answer to an artist request. */
 typedef struct {
     const char * id;
     const char * name;
     const char * image_id;
-    int8_t following;       /* -1 unbekannt (Berechtigung fehlt), 0 nein, 1 ja */
+    int8_t following;       /* -1 unknown (permission missing), 0 no, 1 yes */
     const ui_album_t * albums;
     size_t album_count;
 } ui_artist_t;
 
 void ui_set_artist(const ui_artist_t * artist);
 
-/** Eine Taste der Tastenseite; die Aktion kennt nur die PC-App. */
+/** One key of the key page; only the PC app knows its action. */
 typedef struct {
     const char * label;
-    const char * icon;      /* Lucide-Name, z. B. "keyboard", "calculator" */
-    const char * icon_id;   /* 16 Zeichen: Emoji oder eigenes Bild kommt über ui_put_key_icon(); leer = Lucide */
-    lv_color_t color;       /* Farbe des Lucide-Symbols und der gedrückten Taste */
+    const char * icon;      /* Lucide name, e.g. "keyboard", "calculator" */
+    const char * icon_id;   /* 16 chars: emoji or own picture arrives via ui_put_key_icon(); empty = Lucide */
+    lv_color_t color;       /* colour of the Lucide icon and of the pressed key */
     lv_color_t text_color;
-    bool icon_fill;         /* Bild füllt die ganze Taste, Beschriftung unten darüber */
-    bool empty;            /* leeres Feld: bleibt frei, reagiert nicht */
+    bool icon_fill;         /* picture fills the whole key, label on top at the bottom */
+    bool empty;            /* empty slot: stays blank, doesn't react */
 } ui_key_t;
 
-/** Belegung der Tastenseite von der PC-App. Mehr als 8 Tasten: vertical = weitere Reihen nach unten,
- *  sonst weitere Seiten (je 8) nach rechts. */
+/** Key page layout from the PC app. More than 8 keys: vertical = further rows below,
+ *  otherwise further pages (8 each) to the right. */
 void ui_set_keys(const char * page_name, bool vertical, const ui_key_t * keys, size_t count);
 
-/** Symbolbild einer Taste (RGB565A8: w·h·2 Byte Farbe, dann w·h Byte Alpha). Daten werden kopiert. */
+/** Icon picture of a key (RGB565A8: w·h·2 bytes colour, then w·h bytes alpha). The data is copied. */
 void ui_put_key_icon(const char * id, uint16_t w, uint16_t h, const uint8_t * data, size_t len);
 
-/** Bild (JPEG) für Karten; die Kennung steht in den Listen, das Bild kommt getrennt. Daten werden kopiert. */
+/** Picture (JPEG) for cards; the id is in the lists, the picture comes separately. The data is copied. */
 void ui_put_image(const char * id, const uint8_t * jpeg, size_t len);
 
-/** Ein Kanal der Audio-Seite: Gesamt, Mikrofon oder eine App. */
+/** One channel of the audio page: master, microphone or an app. */
 typedef struct {
-    const char * id;        /* "out", "mic" oder Kennung der App (höchstens 20 Zeichen) */
+    const char * id;        /* "out", "mic" or the app id (at most 20 chars) */
     const char * name;
-    const char * sub;       /* Unterzeile (Gerätename); leer = keine */
-    const char * icon_id;   /* Programmsymbol, kommt über ui_put_audio_icon(); leer = Anfangsbuchstabe */
-    lv_color_t color;       /* Tönung der Symbolkachel */
+    const char * sub;       /* sub line (device name); empty = none */
+    const char * icon_id;   /* program icon, arrives via ui_put_audio_icon(); empty = first letter */
+    lv_color_t color;       /* tint of the icon tile */
     int8_t volume;          /* 0–100 */
     bool muted;
-    uint8_t level;          /* Pegel gerade eben, 0–100 */
+    uint8_t level;          /* current level, 0–100 */
 } ui_audio_channel_t;
 
 typedef struct {
@@ -135,23 +135,23 @@ typedef struct {
 } ui_audio_output_t;
 
 typedef struct {
-    bool list_layout;                   /* false = Mischpult, true = Liste */
-    const ui_audio_channel_t * out;     /* NULL = kein Ausgabegerät */
-    const ui_audio_channel_t * mic;     /* NULL = kein Mikrofon */
+    bool list_layout;                   /* false = mixer, true = list */
+    const ui_audio_channel_t * out;     /* NULL = no output device */
+    const ui_audio_channel_t * mic;     /* NULL = no microphone */
     const ui_audio_channel_t * apps;
     size_t app_count;
-    const ui_audio_output_t * outputs;  /* zur Auswahl des Ausgabegeräts */
+    const ui_audio_output_t * outputs;  /* for choosing the output device */
     size_t output_count;
 } ui_audio_t;
 
-/** Stand des Mixers; kommt nur, solange die Audio-Seite offen ist. */
+/** Mixer state; only arrives while the audio page is open. */
 void ui_set_audio(const ui_audio_t * audio);
 
-/** Programmsymbol für die Audio-Seite (RGB565A8 wie bei den Tasten). Daten werden kopiert. */
+/** Program icon for the audio page (RGB565A8 like the keys). The data is copied. */
 void ui_put_audio_icon(const char * id, uint16_t w, uint16_t h, const uint8_t * data, size_t len);
 
-/** Welche Seiten oben als Reiter stehen (in der PC-App einstellbar). Mindestens eine bleibt sichtbar. */
+/** Which pages sit at the top as tabs (set in the PC app). At least one stays visible. */
 void ui_set_pages(bool music, bool playlists, bool keys, bool audio);
 
-/** Wohin Befehle gehen (JSON wie {"cmd":"next"}); die Plattform schickt sie an die PC-App. */
+/** Where commands go (JSON like {"cmd":"next"}); the platform sends them to the PC app. */
 void ui_set_command_handler(void (*handler)(const char * json));

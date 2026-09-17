@@ -1,13 +1,13 @@
-"""Englische Texte der Oberfläche. Schreibt sie in web/i18n.js (zwischen /*EN-START*/ und /*EN-END*/).
+"""English interface text. Writes it into web/i18n.js (between /*EN-START*/ and /*EN-END*/).
 
-Aufruf: python tools/en_table.py
-Neue Sätze findet tools/collect_i18n.py; hier eintragen und das Skript erneut laufen lassen.
+Usage: python tools/en_table.py
+tools/collect_i18n.py finds new sentences; add them here and run this script again.
 """
 import json
 from pathlib import Path
 
 EN = {
-    # Seitenleiste und Übersicht
+    # Sidebar and overview
     "Deck Thing": "Deck Thing",
     "Deck Thing – Tasten": "Deck Thing – Keys",
     "Übersicht": "Overview",
@@ -76,7 +76,7 @@ EN = {
     "Like, Bibliothek, Smart Shuffle und Spotifys Lautstärkeregler gehen danach nicht mehr. Titel und Steuerung laufen weiter.":
         "Likes, library, Smart Shuffle and Spotify's volume control stop working. Titles and playback controls keep running.",
 
-    # Einstellungen
+    # Settings
     "Entwicklungsmodus: Autostart und Updates gibt es nur in der installierten App.": "Development mode: autostart and updates are only available in the installed app.",
     "Im Browser geöffnet: Einstellungen gibt es nur im App-Fenster.": "Opened in a browser: settings are only available in the app window.",
     "Sprache der Oberfläche": "Interface language",
@@ -105,7 +105,7 @@ EN = {
     'Inspiriert vom eingestellten Spotify Car Thing und von <a href="#" data-url="https://github.com/ItsRiprod/DeskThing">DeskThing</a> von ItsRiprod, das die Original-Hardware weiter nutzbar macht.<br> Gebaut mit <a href="#" data-url="https://lvgl.io">LVGL</a> (MIT), <a href="#" data-url="https://pywebview.flowrl.com">pywebview</a> (BSD), <a href="#" data-url="https://docs.aiohttp.org">aiohttp</a> (Apache 2.0), <a href="#" data-url="https://python-pillow.org">Pillow</a> (MIT-CMU), <a href="#" data-url="https://github.com/AndreMiras/pycaw">pycaw</a> (MIT) und <a href="#" data-url="https://github.com/moses-palmer/pystray">pystray</a> (LGPL). Symbole: <a href="#" data-url="https://lucide.dev">Lucide</a> (ISC) und <a href="#" data-url="https://fonts.google.com/icons">Material Icons</a> (Apache 2.0). Schrift: <a href="#" data-url="https://github.com/erikdkennedy/figtree">Figtree</a> (OFL). Emojis auf den Tasten zeichnet Windows mit Segoe UI Emoji. Spotify ist eine Marke von Spotify AB; dieses Projekt steht in keiner Verbindung zu Spotify.':
         'Inspired by the discontinued Spotify Car Thing and by <a href="#" data-url="https://github.com/ItsRiprod/DeskThing">DeskThing</a> by ItsRiprod, which keeps the original hardware useful.<br> Built with <a href="#" data-url="https://lvgl.io">LVGL</a> (MIT), <a href="#" data-url="https://pywebview.flowrl.com">pywebview</a> (BSD), <a href="#" data-url="https://docs.aiohttp.org">aiohttp</a> (Apache 2.0), <a href="#" data-url="https://python-pillow.org">Pillow</a> (MIT-CMU), <a href="#" data-url="https://github.com/AndreMiras/pycaw">pycaw</a> (MIT) and <a href="#" data-url="https://github.com/moses-palmer/pystray">pystray</a> (LGPL). Icons: <a href="#" data-url="https://lucide.dev">Lucide</a> (ISC) and <a href="#" data-url="https://fonts.google.com/icons">Material Icons</a> (Apache 2.0). Font: <a href="#" data-url="https://github.com/erikdkennedy/figtree">Figtree</a> (OFL). Emojis on the keys are drawn by Windows with Segoe UI Emoji. Spotify is a trademark of Spotify AB; this project is not affiliated with Spotify.',
 
-    # Tasten-Editor
+    # Key editor
     "Feld anklicken zum Bearbeiten, Felder ziehen zum Tauschen. „Speichern“ schickt die Belegung sofort ans Gerät.":
         "Click a slot to edit it, drag slots to swap them. “Save” sends the layout to the device right away.",
     "Name der Seite": "Page name",
@@ -187,7 +187,7 @@ EN = {
     "Änderungen verwerfen?": "Discard changes?",
     "Alles seit dem letzten Speichern geht verloren.": "Everything since the last save will be lost.",
 
-    # Seiten am Gerät
+    # Pages on the device
     "Seiten am Gerät": "Pages on the device",
     "Nur eingeschaltete Seiten stehen oben am Display. Wer das Gerät nur für Tasten und Audio nutzt, blendet die Musik aus.":
         "Only pages that are switched on appear at the top of the display. If you only use the device for keys and audio, hide the music.",
@@ -201,7 +201,7 @@ EN = {
     "Mischpult": "Mixer",
     "Liste": "List",
 
-    # Farbauswahl
+    # Colour picker
     "Eigene Farbe": "Custom color",
     "Farbton": "Hue",
     "Helligkeit und Sättigung": "Brightness and saturation",
@@ -217,7 +217,7 @@ def main() -> None:
     _, tail = rest.split("/*EN-END*/", 1)
     lines = "".join(f"    {json.dumps(k, ensure_ascii=False)}: {json.dumps(v, ensure_ascii=False)},\n" for k, v in EN.items())
     JS.write_text(head + "/*EN-START*/\n" + lines + "/*EN-END*/" + tail, encoding="utf-8")
-    print(f"{len(EN)} Einträge geschrieben")
+    print(f"{len(EN)} entries written")
 
 
 if __name__ == "__main__":

@@ -1,7 +1,7 @@
 /**
- * Künstlerseite: rundes Foto, Name, Abspielen und Folgen, darunter Alben und Singles zum Wischen.
- * Geöffnet über die Interpreten-Zeile der Wiedergabe. Daten und Bilder liefert die PC-App
- * (Spotify-API mit Login); Top-Songs und Follower gibt es seit Februar 2026 nicht mehr.
+ * Artist page: round photo, name, play and follow, below that albums and singles to swipe through.
+ * Opened from the artists line of the music page. The PC app delivers data and pictures
+ * (Spotify API with login); top tracks and followers are gone since February 2026.
  */
 #include <stdio.h>
 #include <string.h>
@@ -37,14 +37,14 @@ static struct {
 
     char id[40];
     char image_id[17];
-    int8_t following; /* -1 unbekannt (Berechtigung fehlt), 0 nein, 1 ja */
+    int8_t following; /* -1 unknown (permission missing), 0 no, 1 yes */
     album_card_t albums[MAX_ALBUMS];
     size_t count;
     int focus;
     bool focus_visible;
 } ar;
 
-/* ---------- Bausteine ---------- */
+/* ---------- Building blocks ---------- */
 
 static lv_obj_t * pill_button(lv_obj_t * parent, bool primary, lv_event_cb_t cb)
 {
@@ -96,7 +96,7 @@ static void show_message(const char * text)
     ui_set_hidden(ar.message, false);
 }
 
-/* ---------- Bedienung ---------- */
+/* ---------- Controls ---------- */
 
 static void play_uri(const char * uri)
 {
@@ -165,7 +165,7 @@ void ui_artist_knob_press(void)
     play_uri(ar.albums[ar.focus].uri);
 }
 
-/* ---------- Aufbau ---------- */
+/* ---------- Layout ---------- */
 
 void ui_artist_build(lv_obj_t * view)
 {
@@ -267,7 +267,7 @@ static void build_album(album_card_t * card)
     lv_label_set_long_mode(sub, LV_LABEL_LONG_MODE_DOTS);
 }
 
-/* ---------- Daten ---------- */
+/* ---------- Data ---------- */
 
 void ui_artist_open(const char * id, const char * name)
 {
@@ -292,7 +292,7 @@ void ui_artist_open(const char * id, const char * name)
 
 void ui_set_artist(const ui_artist_t * artist)
 {
-    if(artist == NULL || strcmp(artist->id ? artist->id : "", ar.id) != 0) return; /* Antwort auf eine ältere Anfrage */
+    if(artist == NULL || strcmp(artist->id ? artist->id : "", ar.id) != 0) return; /* answer to an older request */
 
     if(artist->name && artist->name[0]) lv_label_set_text(ar.name, artist->name);
     snprintf(ar.image_id, sizeof(ar.image_id), "%s", artist->image_id ? artist->image_id : "");

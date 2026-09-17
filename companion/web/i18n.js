@@ -1,13 +1,13 @@
 /*
- * Übersetzung der Oberfläche (Deutsch → Englisch), gleiche Idee wie im Claude Session Browser:
- * Im HTML und im Skript steht der deutsche Satz. Ein Durchgang über den fertigen Baum ersetzt jeden
- * Textknoten und die Attribute title/placeholder/aria-label, die in der Tabelle stehen – auch alles,
- * was das Skript später einsetzt (MutationObserver). Fehlt eine Übersetzung, bleibt Deutsch stehen.
+ * Interface translation (German → English), same idea as in the Claude Session Browser:
+ * HTML and scripts contain the German sentence. A pass over the finished tree replaces every text
+ * node and the attributes title/placeholder/aria-label found in the table – including anything the
+ * script inserts later (MutationObserver). Without a translation the German stays.
  *
- * - data-raw: nie übersetzen (Songtitel, Tastennamen, Pfade – eine Taste „Suche“ bleibt „Suche“).
- * - data-i18n-html: Satz mit <b>/<a> als ganzen Block übersetzen, sonst zerfällt er in Bruchstücke.
- * - Werte mitten im Satz: t("… {n} …", { n }) im Skript.
- * Fehlende Sätze findet tools/collect_i18n.py (läuft in build.bat).
+ * - data-raw: never translate (song titles, key names, paths – a key called "Suche" stays "Suche").
+ * - data-i18n-html: translate a sentence with <b>/<a> as one block, or it falls apart into fragments.
+ * - Values inside a sentence: t("… {n} …", { n }) in the script.
+ * tools/collect_i18n.py finds missing sentences (it runs in build.bat).
  */
 (() => {
   const EN = {
@@ -190,7 +190,7 @@
   };
 
   const ATTRS = ["title", "placeholder", "aria-label"];
-  const texts = new WeakMap();   // Textknoten → { de, shown }
+  const texts = new WeakMap();   // text node → { de, shown }
   const attrs = new WeakMap();   // Element → { attr: { de, shown } }
   const blocks = new WeakMap();  // data-i18n-html → { de, shown }
   let lang = "de";
@@ -204,7 +204,7 @@
     return out;
   }
 
-  /* Leerraum um den Text behalten, damit Abstände im Layout gleich bleiben */
+  /* keep the whitespace around the text so spacing in the layout stays the same */
   function translated(raw) {
     const key = norm(raw);
     if (lang !== "en" || !key || !has(key)) return raw;
@@ -216,7 +216,7 @@
   function doText(node) {
     if (skipped(node.parentElement)) return;
     let rec = texts.get(node);
-    if (!rec || node.nodeValue !== rec.shown) rec = { de: node.nodeValue };  /* vom Skript neu gesetzt */
+    if (!rec || node.nodeValue !== rec.shown) rec = { de: node.nodeValue };  /* set anew by the script */
     rec.shown = translated(rec.de);
     if (node.nodeValue !== rec.shown) node.nodeValue = rec.shown;
     texts.set(node, rec);
@@ -230,7 +230,7 @@
       const key = norm(rec.de);
       const html = lang === "en" && has(key) ? EN[key] : rec.de;
       if (el.innerHTML !== html) el.innerHTML = html;
-      rec.shown = el.innerHTML;  /* so, wie der Browser es zurückgibt */
+      rec.shown = el.innerHTML;  /* the way the browser returns it */
       blocks.set(el, rec);
     }
     if (el.parentElement && skipped(el.parentElement) && !el.hasAttribute("data-i18n-html")) return;
@@ -270,7 +270,7 @@
     document.documentElement.lang = lang;
     walk(document.documentElement);
     document.documentElement.style.visibility = "";
-    /* Texte mit Werten (t("Taste {n}")) setzt das Skript selbst neu */
+    /* texts with values (t("Taste {n}")) are set again by the script itself */
     window.dispatchEvent(new CustomEvent("languagechange-app", { detail: lang }));
     return lang;
   }
@@ -284,7 +284,7 @@
     }
   }
 
-  /* bis die Sprache feststeht nichts zeigen, sonst blitzt Deutsch auf (höchstens kurz) */
+  /* show nothing until the language is known, or German flashes up (briefly at most) */
   document.documentElement.style.visibility = "hidden";
   setTimeout(() => { document.documentElement.style.visibility = ""; }, 800);
   refresh();

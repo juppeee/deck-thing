@@ -1,10 +1,10 @@
-"""Findet deutsche Oberflächentexte in web/*.html, die in web/i18n.js noch keine Übersetzung haben.
+"""Finds German interface text in web/*.html that has no translation in web/i18n.js yet.
 
-Aufruf: python tools/collect_i18n.py
-Gibt fehlende Sätze aus und endet mit Exit-Code 1, wenn welche fehlen (build.bat bricht dann ab).
-Erkannt werden Textknoten, die Attribute title/placeholder/aria-label und Zeichenketten im Skript.
-Werte mitten im Satz stehen im Code als t("… {count} …", {...}) und werden so ebenfalls gefunden.
-Alles unter data-raw (Namen, Titel, Pfade) bleibt unübersetzt und wird übersprungen.
+Usage: python tools/collect_i18n.py
+Prints missing sentences and exits with code 1 if there are any (build.bat stops then).
+Detects text nodes, the attributes title/placeholder/aria-label and strings in scripts.
+Values inside a sentence are written as t("… {count} …", {...}) in the code and found that way too.
+Everything under data-raw (names, titles, paths) stays untranslated and is skipped.
 """
 import json
 import re
@@ -15,10 +15,10 @@ from pathlib import Path
 WEB = Path(__file__).resolve().parent.parent / "web"
 ATTRS = {"title", "placeholder", "aria-label"}
 LETTERS = re.compile(r"[A-Za-zÄÖÜäöüß]{2,}")
-# Code-Bezeichner, Klassen, Pfade, Adressen – keine Oberflächentexte
+# Code identifiers, classes, paths, addresses – not interface text
 CODE_LIKE = re.compile(r"^[\w.#:/\\\[\]=*>+~@$%()-]+$|^https?://|^[a-z]+(_[a-z]+)+$")
 STRING = re.compile(r'"((?:[^"\\\n]|\\.)*)"|`((?:[^`\\]|\\.)*)`')
-# Ohne Leerzeichen zählt nur ein großgeschriebenes deutsches Wort als Text („Speichern“), nicht „play_pause“
+# Without spaces only a capitalised German word counts as text ("Speichern"), not "play_pause"
 PROSE = re.compile(r"[ ÄÖÜäöüß…–]|^[A-ZÄÖÜ][a-zäöüß]+$")
 
 
@@ -38,7 +38,7 @@ class Collector(HTMLParser):
 
     def handle_starttag(self, tag, attrs):
         a = dict(attrs)
-        raw = "data-raw" in a or "data-i18n-html" in a  # Blöcke sammelt html_blocks() als Ganzes
+        raw = "data-raw" in a or "data-i18n-html" in a  # html_blocks() collects those blocks as a whole
         if tag not in ("meta", "link", "input", "img", "br", "hr"):
             self.stack.append((tag, raw))
             self.raw_depth += raw
@@ -71,7 +71,7 @@ def script_strings(code: str) -> set[str]:
     for m in STRING.finditer(code):
         s = m.group(1) if m.group(1) is not None else m.group(2)
         s = s.strip()
-        # Klassenlisten wie "toast show" und Pfade in Beispielen sind keine Oberflächentexte
+        # class lists like "toast show" and paths in examples are not interface text
         if re.fullmatch(r"[a-z-]+( [a-z-]+)*", s) or re.match(r"^[A-Z]:\\", s):
             continue
         if "${" in s or "<" in s or not LETTERS.search(s) or CODE_LIKE.search(s) or not PROSE.search(s):
@@ -84,7 +84,7 @@ BLOCK = re.compile(r"<(\w+)\b[^>]*\bdata-i18n-html\b[^>]*>(.*?)</\1>", re.S)
 
 
 def html_blocks(src: str) -> set[str]:
-    """Inhalt der data-i18n-html-Elemente, Leerraum zusammengefasst wie in i18n.js."""
+    """Content of the data-i18n-html elements, whitespace collapsed like in i18n.js."""
     return {" ".join(m.group(2).split()) for m in BLOCK.finditer(src)}
 
 

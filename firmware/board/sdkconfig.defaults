@@ -13,8 +13,8 @@ CONFIG_SPIRAM_MALLOC_ALWAYSINTERNAL=16384
 # Run code and constants from PSRAM: flash writes (NVS, OTA) and Bluetooth then no longer
 # stall the RGB panel, which otherwise shows up as a torn or shifting picture
 CONFIG_SPIRAM_XIP_FROM_PSRAM=y
-# Längere Cache-Zeilen: das Display liest ständig Bildpuffer aus dem PSRAM. Mit 32 B kam das
-# Nachladen nicht hinterher und das Bild zuckte nach unten (Waveshares Beispiele setzen das ebenso)
+# Longer cache lines: the display reads frame buffers from PSRAM all the time. With 32 B the
+# refills fell behind and the picture jumped down (Waveshare's examples set this too)
 CONFIG_ESP32S3_DATA_CACHE_LINE_64B=y
 
 CONFIG_ESP_DEFAULT_CPU_FREQ_MHZ_240=y
@@ -22,7 +22,7 @@ CONFIG_FREERTOS_HZ=1000
 CONFIG_COMPILER_OPTIMIZATION_PERF=y
 CONFIG_ESP_MAIN_TASK_STACK_SIZE=8192
 
-# Log nur über den UART-Anschluss (CH343); der USB-Anschluss gehört allein der Verbindung zur PC-App
+# Log only through the UART port (CH343); the USB port belongs to the link with the PC app
 CONFIG_ESP_CONSOLE_UART_DEFAULT=y
 CONFIG_ESP_CONSOLE_SECONDARY_NONE=y
 

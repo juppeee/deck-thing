@@ -1,40 +1,40 @@
 /**
- * Farben, Schriften und Symbole der Geräte-Oberfläche.
- * Werte aus dem HTML-Entwurf (Spotify-Look); für die Veröffentlichung später austauschbar.
+ * Colours, fonts and icons of the device interface.
+ * Values from the HTML draft (Spotify look); can be swapped out later.
  */
 #pragma once
 
 #include "lvgl.h"
 
-/* ---------- Farben ---------- */
-#define COL_INK      lv_color_hex(0x121212) /* Grund */
-#define COL_SURFACE  lv_color_hex(0x282828) /* Flächen, Karten */
+/* ---------- Colours ---------- */
+#define COL_INK      lv_color_hex(0x121212) /* background */
+#define COL_SURFACE  lv_color_hex(0x282828) /* surfaces, cards */
 #define COL_TEXT     lv_color_hex(0xFFFFFF)
 #define COL_MUTED    lv_color_hex(0xB3B3B3)
-#define COL_TRACK    lv_color_hex(0x4D4D4D) /* ungespielter Teil des Fortschritts */
-#define COL_GREEN    lv_color_hex(0x1ED760) /* aktiv, Lautstärke, Like */
+#define COL_TRACK    lv_color_hex(0x4D4D4D) /* unplayed part of the progress */
+#define COL_GREEN    lv_color_hex(0x1ED760) /* active, volume, like */
 
-/* ---------- Schriften (Figtree, OFL) ---------- */
-LV_FONT_DECLARE(fig_xb_42)        /* Titel */
-LV_FONT_DECLARE(fig_b_40)         /* große Überschriften */
-LV_FONT_DECLARE(fig_md_30)        /* Interpreten */
-LV_FONT_DECLARE(fig_sb_28)        /* Kartennamen, Lautstärkezahl */
-LV_FONT_DECLARE(fig_sb_24)        /* Reiter, Uhrzeit, Meldungen */
-LV_FONT_DECLARE(fig_md_22)        /* Herkunft, Nebentexte */
-LV_FONT_DECLARE(fig_sb_20)        /* kleine Karten, Knöpfe */
-LV_FONT_DECLARE(fig_md_17)        /* Unterzeilen kleiner Karten */
-LV_FONT_DECLARE(fig_sb_clock_200) /* Standby-Uhr (nur Ziffern) */
+/* ---------- Fonts (Figtree, OFL) ---------- */
+LV_FONT_DECLARE(fig_xb_42)        /* title */
+LV_FONT_DECLARE(fig_b_40)         /* large headings */
+LV_FONT_DECLARE(fig_md_30)        /* artists */
+LV_FONT_DECLARE(fig_sb_28)        /* card names, volume number */
+LV_FONT_DECLARE(fig_sb_24)        /* tabs, clock, messages */
+LV_FONT_DECLARE(fig_md_22)        /* context, secondary text */
+LV_FONT_DECLARE(fig_sb_20)        /* small cards, buttons */
+LV_FONT_DECLARE(fig_md_17)        /* sub lines of small cards */
+LV_FONT_DECLARE(fig_sb_clock_200) /* standby clock (digits only) */
 
-/* ---------- Symbole ---------- */
-/* Material Icons (Apache 2.0): gefüllte Symbole wie Play, Pause, Weiter, gelikt */
+/* ---------- Icons ---------- */
+/* Material Icons (Apache 2.0): filled icons like play, pause, next, liked */
 LV_FONT_DECLARE(mi_28)
 LV_FONT_DECLARE(mi_44)
 LV_FONT_DECLARE(mi_64)
-/* Lucide (ISC): dünne Linien-Symbole, näher am Spotify-Look für Zufall, Wiederholen, Plus, Lautstärke */
+/* Lucide (ISC): thin line icons, closer to the Spotify look for shuffle, repeat, plus, volume */
 LV_FONT_DECLARE(lc_36)
 LV_FONT_DECLARE(lc_28)
 LV_FONT_DECLARE(lc_16)
-LV_FONT_DECLARE(lc_48) /* Tastensymbole der Tastenseite */
+LV_FONT_DECLARE(lc_48) /* key icons of the key page */
 
 #define ICON_LC_SHUFFLE      "\xEE\x85\x9E" /* U+E15E shuffle */
 #define ICON_LC_REPEAT       "\xEE\x85\x86" /* U+E146 repeat */
@@ -43,7 +43,7 @@ LV_FONT_DECLARE(lc_48) /* Tastensymbole der Tastenseite */
 #define ICON_LC_VOLUME       "\xEE\x86\xAB" /* U+E1AB volume-2 */
 #define ICON_LC_VOLUME_OFF   "\xEE\x86\xAC" /* U+E1AC volume-x */
 #define ICON_LC_SPARKLE      "\xEE\x91\xBE" /* U+E47E sparkle (Smart Shuffle) */
-/* Audio-Seite (lc_28) */
+/* audio page (lc_28) */
 #define ICON_LC_MIC          "\xEE\x84\x98" /* U+E118 mic */
 #define ICON_LC_MIC_OFF      "\xEE\x84\x99" /* U+E119 mic-off */
 #define ICON_LC_SPEAKER      "\xEE\x85\xA6" /* U+E166 speaker */
@@ -51,7 +51,7 @@ LV_FONT_DECLARE(lc_48) /* Tastensymbole der Tastenseite */
 #define ICON_LC_CHECK        "\xEE\x81\xAC" /* U+E06C check */
 #define ICON_LC_ARROWS       "\xEE\x89\x8A" /* U+E24A arrow-left-right */
 
-/* Codepunkte im privaten Unicode-Bereich, als UTF-8 */
+/* code points in the Unicode private use area, as UTF-8 */
 #define ICON_PLAY            "\xEE\x80\xB7" /* U+E037 play_arrow */
 #define ICON_PAUSE           "\xEE\x80\xB4" /* U+E034 pause */
 #define ICON_PREV            "\xEE\x81\x85" /* U+E045 skip_previous */
@@ -75,7 +75,7 @@ LV_FONT_DECLARE(lc_48) /* Tastensymbole der Tastenseite */
 #define ICON_KNOB            "\xEE\xA0\xB6" /* U+E836 radio_button_unchecked */
 #define ICON_TUNE            "\xEE\x90\xA9" /* U+E429 tune */
 
-/* ---------- Maße (Display 800×480) ---------- */
+/* ---------- Dimensions (display 800×480) ---------- */
 #define SCREEN_W   800
 #define SCREEN_H   480
 #define TOPBAR_H   64

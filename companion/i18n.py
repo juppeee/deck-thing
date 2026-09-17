@@ -1,8 +1,8 @@
-"""Sprache der App: Deutsch oder Englisch, standardmäßig nach der Windows-Anzeigesprache.
+"""App language: German or English, following the Windows display language by default.
 
-Wie im Claude Session Browser ist der deutsche Satz der Schlüssel: im Code steht t("Speichern"),
-fehlt eine Übersetzung, erscheint Deutsch. Die Oberfläche (web/i18n.js) hat ihre eigene Tabelle;
-hier stehen nur Texte, die Python erzeugt (Fehlermeldungen, Hinweise am Gerät, Infobereich).
+Like the Claude Session Browser, the German sentence is the key: the code says t("Speichern"),
+and a missing translation shows German. The interface (web/i18n.js) has its own table;
+this one only holds text that Python produces (errors, hints on the device, tray menu).
 """
 
 from __future__ import annotations
@@ -16,10 +16,10 @@ SETTINGS_FILE = paths.DATA_DIR / "settings.json"
 CHOICES = ("auto", "de", "en")
 
 EN = {
-    # Infobereich
+    # Tray menu
     "Öffnen": "Open",
     "Beenden": "Quit",
-    # Tastenbelegung
+    # Key layout
     "Emoji fehlt": "Emoji missing",
     "bitte genau ein Emoji, keine Buchstaben": "please use exactly one emoji, no letters",
     "dieses Zeichen kann Windows nicht darstellen": "Windows can't draw this character",
@@ -36,7 +36,7 @@ EN = {
     "Hat nicht geklappt: {err}": "Didn't work: {err}",
     "Das Bild lässt sich nicht lesen (PNG, JPG, WebP, GIF oder ICO)": "Can't read this image (PNG, JPG, WebP, GIF or ICO)",
     "Die Client-ID besteht aus 32 Zeichen (0–9, a–f).": "The client ID has 32 characters (0–9, a–f).",
-    # Hinweise am Gerät
+    # Hints on the device
     "Playlist konnte nicht gestartet werden": "Couldn't start the playlist",
     "„{label}“ hat nicht geklappt": "“{label}” didn't work",
     "Spotify erlaubt das über Windows nicht": "Spotify doesn't allow this through Windows",
@@ -52,11 +52,11 @@ EN = {
     "Update läuft bereits.": "Update is already running.",
     "Download unvollständig": "Download incomplete",
     "Prüfsumme stimmt nicht – Update abgebrochen": "Checksum doesn't match – update cancelled",
-    # Audio-Seite
+    # Audio page
     "Gesamt": "Master",
     "Mikrofon": "Microphone",
     "Systemklänge": "System sounds",
-    # Dateiauswahl
+    # File picker
     "Programme (*.exe;*.lnk;*.bat;*.cmd)": "Programs (*.exe;*.lnk;*.bat;*.cmd)",
     "Skripte (*.ps1;*.bat;*.cmd;*.py)": "Scripts (*.ps1;*.bat;*.cmd;*.py)",
     "Alle Dateien (*.*)": "All files (*.*)",
@@ -64,7 +64,7 @@ EN = {
 
 
 def windows_language() -> str:
-    """„de“ auf deutschen Windows-Systemen, sonst „en“ (primäre Sprach-ID 0x07 = Deutsch)."""
+    """"de" on German Windows, "en" everywhere else (primary language id 0x07 = German)."""
     try:
         return "de" if ctypes.windll.kernel32.GetUserDefaultUILanguage() & 0x3FF == 0x07 else "en"
     except (AttributeError, OSError):

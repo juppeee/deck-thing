@@ -1,14 +1,14 @@
-"""Deck Thing – PC-App.
+"""Deck Thing – PC app.
 
-Eigenes Fenster (pywebview/WebView2) statt Browser, Symbol im Infobereich, nur eine Instanz,
-Autostart und Auto-Update. Die Brücke (bridge.py) läuft unsichtbar im selben Prozess:
-sie liest Spotify, spricht mit dem Gerät und liefert die Seiten des Fensters aus.
+Its own window (pywebview/WebView2) instead of a browser, a tray icon, a single instance,
+autostart and auto-update. The bridge (bridge.py) runs invisibly in the same process:
+it reads Spotify, talks to the device and serves the window's pages.
 
-Aufbau wie beim Claude Session Browser; dessen Lehren sind übernommen
-(Updater als eigener Prozess, Mutex + Sperrdatei, Fenster über das Handle zurückholen).
+Built like the Claude Session Browser, taking over its lessons
+(updater as a separate process, mutex + lock file, bringing the window back by its handle).
 
-Start:  python deck_thing.py          (Fenster)
-        python deck_thing.py --tray   (nur Infobereich, wie beim Autostart)
+Start:  python deck_thing.py          (window)
+        python deck_thing.py --tray   (tray only, as with autostart)
 """
 
 from __future__ import annotations
@@ -34,17 +34,17 @@ import i18n
 import paths
 from i18n import t
 
-VERSION = "0.1.0"
+VERSION = "0.1.1"
 APP_TITLE = "Deck Thing"
 APP_ID = "DeckThing"
 EXE_NAME = "DeckThing.exe"
-# version.json auf main; solange das Repo privat ist, schlägt die Abfrage fehl (die App meldet das nur)
+# version.json on main; the repo must be public for the check to work
 UPDATE_URL = "https://raw.githubusercontent.com/juppeee/deck-thing/main/version.json"
 RELEASES_URL = "https://github.com/juppeee/deck-thing/releases/latest"
 
 FROZEN = bool(getattr(sys, "frozen", False))
 INSTALL_DIR = Path(os.environ.get("LOCALAPPDATA") or Path.home()) / "Programs" / APP_ID
-# Autostart und Updates nur für die installierte App – ein Test-Build aus dist\ soll sich nicht eintragen
+# Autostart and updates only for the installed app – a test build from dist\ must not register itself
 INSTALLED = FROZEN and Path(sys.executable).resolve().parent == INSTALL_DIR.resolve()
 RES = Path(getattr(sys, "_MEIPASS", Path(__file__).resolve().parent))
 DATA_DIR = paths.DATA_DIR
@@ -60,7 +60,7 @@ DETACHED = 0x00000008 | 0x00000200  # DETACHED_PROCESS | CREATE_NEW_PROCESS_GROU
 log = logging.getLogger("app")
 
 
-# ---------- Grundlagen ----------
+# ---------- Basics ----------
 
 def setup_logging() -> None:
     DATA_DIR.mkdir(parents=True, exist_ok=True)
@@ -107,7 +107,7 @@ def is_autostart() -> bool:
 
 
 def set_autostart(enabled: bool) -> bool:
-    """Nur in der installierten App – sonst stünde beim Anmelden python.exe oder ein Test-Build im Autostart."""
+    """Only for the installed app – otherwise python.exe or a test build would end up in autostart."""
     if not INSTALLED:
         return False
     import winreg
@@ -123,17 +123,17 @@ def set_autostart(enabled: bool) -> bool:
                     pass
         return True
     except OSError as err:
-        log.warning("Autostart ließ sich nicht setzen: %s", err)
+        log.warning("Could not set autostart: %s", err)
         return False
 
 
-# ---------- Nur eine Instanz ----------
+# ---------- Single instance ----------
 
-_instance_handles: list = []  # Mutex und Sperrdatei bis zum Prozessende festhalten
+_instance_handles: list = []  # hold mutex and lock file until the process ends
 
 
 def acquire_single_instance() -> bool:
-    """Mutex und zusätzlich eine gesperrte Datei: nur wenn beide frei sind, sind wir die erste Instanz."""
+    """A mutex plus a locked file: only if both are free are we the first instance."""
     first = True
     try:
         k32 = ctypes.windll.kernel32
@@ -161,7 +161,7 @@ def acquire_single_instance() -> bool:
 
 
 def restore_existing_window() -> bool:
-    """Fenster der laufenden Instanz nach vorn holen – auch aus dem Infobereich."""
+    """Bring the running instance's window to the front – also from the tray."""
     from ctypes import wintypes
 
     user32 = ctypes.windll.user32
@@ -183,7 +183,7 @@ def restore_existing_window() -> bool:
     if not hwnd:
         return False
     user32.ShowWindow(hwnd, 9 if user32.IsIconic(hwnd) else 5)  # SW_RESTORE / SW_SHOW
-    # SetForegroundWindow allein wird von Windows oft verweigert; kurz ganz nach oben hilft
+    # Windows often refuses SetForegroundWindow on its own; briefly going topmost helps
     flags = 0x0002 | 0x0001 | 0x0040  # NOMOVE | NOSIZE | SHOWWINDOW
     user32.SetWindowPos(hwnd, -1, 0, 0, 0, 0, flags)
     user32.SetWindowPos(hwnd, -2, 0, 0, 0, 0, flags)
@@ -191,10 +191,10 @@ def restore_existing_window() -> bool:
     return True
 
 
-# ---------- Brücke im Hintergrund ----------
+# ---------- Bridge in the background ----------
 
 class BridgeServer:
-    """Webserver und Spotify-/Geräteschleifen der Brücke in einem eigenen Thread mit eigener asyncio-Schleife."""
+    """The bridge's web server and Spotify/device loops on their own thread with their own asyncio loop."""
 
     def __init__(self) -> None:
         self.loop: asyncio.AbstractEventLoop | None = None
@@ -213,8 +213,8 @@ class BridgeServer:
         asyncio.set_event_loop(loop)
         try:
             loop.run_until_complete(self._serve())
-        except Exception as err:  # z. B. Port belegt
-            log.exception("Brücke startet nicht")
+        except Exception as err:  # e.g. port in use
+            log.exception("Bridge does not start")
             self.error = err
             self.ready.set()
             return
@@ -233,7 +233,7 @@ class BridgeServer:
         self._runner = web.AppRunner(bridge.create_app(), access_log=None)
         await self._runner.setup()
         await web.TCPSite(self._runner, bridge.HOST, bridge.PORT).start()
-        log.info("Brücke läuft auf http://%s:%d", bridge.HOST, bridge.PORT)
+        log.info("Bridge running on http://%s:%d", bridge.HOST, bridge.PORT)
 
     def stop(self) -> None:
         if self.loop and self.loop.is_running():
@@ -243,9 +243,9 @@ class BridgeServer:
 # ---------- Updates ----------
 
 def ssl_context() -> ssl.SSLContext:
-    # Windows-Zertifikatsspeicher: Virenscanner mit TLS-Prüfung brechen sonst jede Verbindung ab
+    # Windows certificate store: antivirus with TLS inspection would otherwise break every connection
     if "truststore" in getattr(ssl.SSLContext, "__module__", ""):
-        # schon global umgebogen (z. B. pip-system-certs); ein zweites truststore darüber läuft in eine Endlosschleife
+        # already patched globally (e.g. pip-system-certs); a second truststore on top recurses forever
         return ssl.create_default_context()
     try:
         import truststore
@@ -259,7 +259,7 @@ def version_tuple(value: str) -> tuple:
     return tuple(int(x) for x in re.findall(r"\d+", value or "0")[:3])
 
 
-# ---------- Schnittstelle für die Seite (window.pywebview.api) ----------
+# ---------- Interface for the page (window.pywebview.api) ----------
 
 class Api:
     def __init__(self, settings: dict, quit_app) -> None:
@@ -294,7 +294,7 @@ class Api:
                 return False
             pages = {k: bool(value.get(k, v)) for k, v in paths.DEFAULT_PAGES.items()}
             if not any(pages.values()):
-                return False  # eine Seite bleibt immer
+                return False  # one page always stays
             self._settings["pages"] = pages
             save_settings(self._settings)
             return True
@@ -350,7 +350,7 @@ class Api:
                 "current": VERSION, "latest": data.get("version"), "notes": data.get("notes", "")}
 
     def install_update(self) -> dict:
-        """Installer laden, Prüfsumme prüfen, Updater starten, App beenden (Updater + Installer machen den Rest)."""
+        """Download the installer, check its checksum, start the updater, quit (updater + installer do the rest)."""
         data = self._update
         if not data or not data.get("installer_url"):
             return {"ok": False, "error": t("Keine Update-Information – bitte erst nach Updates suchen.")}
@@ -389,11 +389,11 @@ class Api:
                 raise ValueError(t("Prüfsumme stimmt nicht – Update abgebrochen"))
             part.replace(setup)
             subprocess.Popen([str(updater), "--install", str(setup)], creationflags=DETACHED, close_fds=True)
-            log.info("Update %s: Updater gestartet, App beendet sich", data.get("version"))
+            log.info("Update %s: updater started, app quits", data.get("version"))
             self.quit()
             return {"ok": True}
         except Exception as err:
-            log.warning("Update fehlgeschlagen: %s", err)
+            log.warning("Update failed: %s", err)
             return {"ok": False, "error": str(err)}
         finally:
             self._installing = False
@@ -403,7 +403,7 @@ class Api:
                 pass
 
 
-# ---------- Infobereich ----------
+# ---------- Tray ----------
 
 class Tray:
     def __init__(self, on_open, on_quit) -> None:
@@ -418,7 +418,7 @@ class Tray:
 
             image = Image.open(RES / "assets" / "deck_thing.ico")
         except Exception as err:
-            log.warning("Symbol im Infobereich nicht möglich: %s", err)
+            log.warning("Tray icon not possible: %s", err)
             return False
         menu = pystray.Menu(
             pystray.MenuItem(lambda _item: t("Öffnen"), lambda: self._on_open(), default=True),
@@ -443,8 +443,8 @@ ERROR_PAGE = """<!doctype html><html lang="de"><meta charset="utf-8"><title>Deck
 
 
 def set_window_icon() -> None:
-    """Eigenes Symbol in Titelleiste und Taskleiste. Die installierte App erbt es von der .exe;
-    beim Start aus dem Quellcode zeigte das Fenster sonst das Python-Symbol."""
+    """Own icon in the title bar and taskbar. The installed app inherits it from the .exe;
+    started from source the window would otherwise show the Python icon."""
     from ctypes import wintypes
 
     user32 = ctypes.windll.user32
@@ -477,15 +477,15 @@ def set_window_icon() -> None:
 def main() -> None:
     setup_logging()
     try:
-        # eigene Gruppe in der Taskleiste statt „Python“
+        # own taskbar group instead of "Python"
         ctypes.windll.shell32.SetCurrentProcessExplicitAppUserModelID("juppeee.DeckThing")
     except (AttributeError, OSError):
         pass
-    log.info("Deck Thing %s startet (%s)", VERSION, "App" if FROZEN else "Entwicklung")
+    log.info("Deck Thing %s starting (%s)", VERSION, "app" if FROZEN else "development")
     if not acquire_single_instance():
         if restore_existing_window():
             return
-        time.sleep(1.5)  # alte Instanz beendet sich vielleicht gerade (Update)
+        time.sleep(1.5)  # the old instance may be quitting right now (update)
         if not acquire_single_instance() and restore_existing_window():
             return
 
@@ -526,14 +526,14 @@ def main() -> None:
         if not state["visible"]:
             state["visible"] = True
             try:
-                window.evaluate_js("window.playSplash && playSplash()")  # Startanimation auch beim Öffnen aus dem Infobereich
+                window.evaluate_js("window.playSplash && playSplash()")  # start animation when opened from the tray too
             except Exception:
                 pass
         window.show()
         window.restore()
 
     def request_quit() -> None:
-        """Ungespeicherte Tasten-Änderungen? Dann erst fragen (im Fenster, nicht per Browserdialog)."""
+        """Unsaved key changes? Ask first (inside the window, not with a browser dialog)."""
         try:
             dirty = bool(window.evaluate_js("window.hasUnsaved ? hasUnsaved() : false"))
         except Exception:
@@ -567,14 +567,14 @@ def main() -> None:
             state["visible"] = False
             threading.Thread(target=window.hide, daemon=True).start()
         else:
-            # evaluate_js darf nicht im Fenster-Thread laufen, der gerade das Schließen meldet
+            # evaluate_js must not run on the window thread that is reporting the close
             threading.Thread(target=request_quit, daemon=True).start()
         return False
 
     def on_loaded():
         threading.Thread(target=set_window_icon, daemon=True).start()
-        # Windows gibt dem ersten Fenster eines Prozesses den Anzeigemodus des Starters mit
-        # (z. B. versteckt aus einer Verknüpfung oder einem Skript) – ohne --tray immer zeigen
+        # Windows hands the first window of a process the show mode of whatever started it
+        # (e.g. hidden from a shortcut or a script) – without --tray always show it
         if not start_hidden:
             threading.Thread(target=show_window, daemon=True).start()
 
@@ -583,7 +583,7 @@ def main() -> None:
     webview.start(private_mode=False, storage_path=str(DATA_DIR / "webview"))
     tray.stop()
     server.stop()
-    log.info("Deck Thing beendet")
+    log.info("Deck Thing stopped")
 
 
 if __name__ == "__main__":

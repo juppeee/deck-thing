@@ -1,10 +1,10 @@
 /**
- * Kleiner Bildspeicher für Playlist- und Künstlerbilder, die die PC-App als JPEG schickt.
- * Bilder werden über eine 16-stellige Kennung gefunden; ist der Speicher voll, fliegt das
- * am längsten nicht benutzte Bild – vorher wird es aus allen Karten gelöst.
+ * Small picture store for playlist and artist pictures the PC app sends as JPEG.
+ * Pictures are found by a 16-char id; when the store is full, the least recently used
+ * picture goes – after it has been detached from every card.
  *
- * Jedes JPEG wird beim Eintreffen einmal nach RGB565 dekodiert. LVGLs TJPGD dekodiert sonst bei
- * jedem Neuzeichnen neu, und beim Wischen durch die Bibliothek sind das mehrere Bilder pro Frame.
+ * Every JPEG is decoded to RGB565 once when it arrives. Otherwise LVGL's TJPGD decodes again on
+ * every redraw, and swiping through the playlists means several pictures per frame.
  */
 #include <string.h>
 
@@ -12,7 +12,7 @@
 
 #define IMAGE_SLOTS   32
 #define ID_LEN        16
-#define IMAGE_BUDGET  (3500 * 1024) /* dekodiert: 264er-Karte ≈ 140 kB; PSRAM teilt sich das mit zwei Bildpuffern */
+#define IMAGE_BUDGET  (3500 * 1024) /* decoded: a 264 px card ≈ 140 kB; PSRAM shares this with two frame buffers */
 
 typedef struct {
     char id[ID_LEN + 1];
@@ -45,7 +45,7 @@ lv_draw_buf_t * ui_jpeg_decode(const uint8_t * jpeg, size_t len)
         return NULL;
     }
 
-    /* TJPGD liefert das Bild kachelweise (eine MCU pro Aufruf) als BGR888 */
+    /* TJPGD delivers the picture tile by tile (one MCU per call) as BGR888 */
     const lv_area_t full = { 0, 0, w - 1, h - 1 };
     lv_area_t tile = { .y1 = LV_COORD_MIN };
     bool ok = false;
@@ -94,7 +94,7 @@ const lv_image_dsc_t * ui_image_get(const char * id)
 
 static void release(image_slot_t * slot)
 {
-    /* erst aus den Karten lösen, dann freigeben – sonst zeigt eine Karte auf freien Speicher */
+    /* detach from the cards first, then free – or a card points at freed memory */
     ui_library_image_dropped(slot->id);
     ui_artist_image_dropped(slot->id);
     ui_image_free(slot->buf);
@@ -122,7 +122,7 @@ static image_slot_t * oldest_slot(void)
 static image_slot_t * pick_slot(const char * id, size_t need)
 {
     for(int i = 0; i < IMAGE_SLOTS; i++) {
-        if(slots[i].buf != NULL && strcmp(slots[i].id, id) == 0) release(&slots[i]); /* gleiches Bild ersetzen */
+        if(slots[i].buf != NULL && strcmp(slots[i].id, id) == 0) release(&slots[i]); /* replace the same picture */
     }
     while(used_bytes() + need > IMAGE_BUDGET && oldest_slot() != NULL) release(oldest_slot());
     for(int i = 0; i < IMAGE_SLOTS; i++) {

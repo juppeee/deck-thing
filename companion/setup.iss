@@ -4,7 +4,7 @@
 ; Silent (used by the updater): DeckThing-Setup.exe /VERYSILENT /SUPPRESSMSGBOXES /NORESTART
 
 #define MyAppName "Deck Thing"
-#define MyAppVersion "0.1.0"
+#define MyAppVersion "0.1.1"
 #define MyAppPublisher "juppeee"
 #define MyAppURL "https://github.com/juppeee/deck-thing"
 #define MyAppExeName "DeckThing.exe"

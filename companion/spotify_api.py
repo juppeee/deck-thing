@@ -1,10 +1,10 @@
-"""Spotify-Anmeldung und Web-API.
+"""Spotify login and Web API.
 
-Anmeldung per Authorization Code mit PKCE: kein Client-Secret, nur die Client-ID
-der eigenen Entwickler-App. Seit Februar 2026 braucht der Besitzer der App
-Spotify Premium, und eine App darf höchstens 5 Nutzer haben.
+Login via Authorization Code with PKCE: no client secret, only the client ID
+of your own developer app. Since February 2026 the app's owner needs
+Spotify Premium, and an app may have at most 5 users.
 
-Zugangsdaten liegen in ~/.deck-thing/spotify.json, nie im Projektordner.
+Credentials live in ~/.deck-thing/spotify.json, never in the project folder.
 """
 
 from __future__ import annotations
@@ -25,7 +25,7 @@ from paths import DATA_DIR
 
 API = "https://api.spotify.com/v1"
 ACCOUNTS = "https://accounts.spotify.com"
-REDIRECT_URI = "http://127.0.0.1:8765/callback"  # "localhost" lässt Spotify seit 2025 nicht mehr zu
+REDIRECT_URI = "http://127.0.0.1:8765/callback"  # Spotify no longer accepts "localhost" since 2025
 SCOPES = " ".join([
     "user-read-playback-state",
     "user-modify-playback-state",
@@ -34,8 +34,8 @@ SCOPES = " ".join([
     "user-library-modify",
     "playlist-read-private",
     "playlist-read-collaborative",
-    "user-follow-read",    # folge ich dem Künstler? (GET /me/library/contains mit Künstler-URI)
-    "user-follow-modify",  # Künstler folgen/entfolgen (PUT/DELETE /me/library)
+    "user-follow-read",    # do I follow the artist? (GET /me/library/contains with the artist URI)
+    "user-follow-modify",  # follow/unfollow artists (PUT/DELETE /me/library)
 ])
 CONFIG_FILE = DATA_DIR / "spotify.json"
 
@@ -56,7 +56,7 @@ class SpotifyAPI:
         self._refresh_lock = asyncio.Lock()
         self._cooldown_until = 0.0
 
-    # ---------- Konfiguration ----------
+    # ---------- Configuration ----------
 
     @staticmethod
     def _load() -> dict:
@@ -94,7 +94,7 @@ class SpotifyAPI:
             self._session = aiohttp.ClientSession(timeout=aiohttp.ClientTimeout(total=10))
         return self._session
 
-    # ---------- Anmeldung (PKCE) ----------
+    # ---------- Login (PKCE) ----------
 
     def login_url(self, client_id: str) -> str:
         self._cfg["client_id"] = client_id.strip()
@@ -133,9 +133,9 @@ class SpotifyAPI:
                 raise SpotifyError(resp.status, str(body))
         self._cfg["access_token"] = body["access_token"]
         self._cfg["expires_at"] = time.time() + int(body.get("expires_in", 3600))
-        if body.get("scope"):  # erteilte Berechtigungen merken; ältere Anmeldungen haben weniger
+        if body.get("scope"):  # remember granted permissions; older logins have fewer
             self._cfg["scope"] = body["scope"]
-        if body.get("refresh_token"):  # Spotify rotiert den Refresh-Token manchmal
+        if body.get("refresh_token"):  # Spotify sometimes rotates the refresh token
             self._cfg["refresh_token"] = body["refresh_token"]
         self._save()
 
@@ -151,8 +151,8 @@ class SpotifyAPI:
                         "client_id": self.client_id,
                     })
                 except SpotifyError as err:
-                    if err.status in (400, 401):  # Zugang widerrufen
-                        log.warning("Spotify-Anmeldung abgelaufen, bitte neu verbinden")
+                    if err.status in (400, 401):  # access revoked
+                        log.warning("Spotify login expired, please reconnect")
                         self.logout()
                     raise
         return self._cfg.get("access_token")
@@ -182,7 +182,7 @@ class SpotifyAPI:
             return json.loads(text) if text.strip() else None
 
     async def player(self) -> dict | None:
-        """Wiedergabestand; None, wenn gerade kein Gerät aktiv ist (204)."""
+        """Playback state; None when no device is active (204)."""
         return await self._request("GET", "/me/player")
 
     async def set_volume(self, percent: int) -> None:
@@ -214,7 +214,7 @@ class SpotifyAPI:
         await self._request("PUT", "/me/player/play", json_body={"context_uri": uri})
 
     async def artist(self, artist_id: str) -> dict:
-        """Einzelner Künstler (Name, Bilder). Top-Songs und Follower gibt es seit Februar 2026 nicht mehr."""
+        """A single artist (name, images). Top tracks and followers are gone since February 2026."""
         return await self._request("GET", f"/artists/{artist_id}") or {}
 
     async def artist_albums(self, artist_id: str) -> list[dict]:
@@ -224,7 +224,7 @@ class SpotifyAPI:
         except SpotifyError as err:
             if err.status != 400:
                 raise
-            params["limit"] = 10  # falls Spotify die Obergrenze gesenkt hat
+            params["limit"] = 10  # in case Spotify lowered the limit
             data = await self._request("GET", f"/artists/{artist_id}/albums", params=params) or {}
         types = {"album": "Album", "single": "Single", "compilation": "Compilation"}
         albums = []
@@ -247,7 +247,7 @@ class SpotifyAPI:
         return data.get("name", "")
 
     async def me(self) -> dict:
-        """Eigenes Profil; id und display_name gibt es auch nach dem Umbau im Februar 2026 noch."""
+        """Own profile; id and display_name still exist after the February 2026 changes."""
         if "me" not in self._cfg:
             data = await self._request("GET", "/me") or {}
             self._cfg["me"] = {"id": data.get("id", ""), "name": data.get("display_name") or data.get("id", "")}
@@ -255,15 +255,15 @@ class SpotifyAPI:
         return self._cfg["me"]
 
     async def play_liked(self) -> None:
-        """Lieblingssongs abspielen. Spotify führt sie nicht als Playlist; der Kontext
-        spotify:user:<id>:collection wird vom Player akzeptiert. Klappt das nicht,
-        die neuesten 50 gelikten Songs als Liste starten."""
+        """Play Liked Songs. Spotify doesn't list them as a playlist; the player accepts the
+        context spotify:user:<id>:collection. If that fails, start the newest 50
+        liked songs as a list."""
         me = await self.me()
         try:
             await self.play_context(f"spotify:user:{me['id']}:collection")
             return
         except SpotifyError as err:
-            log.info("Lieblingssongs als Kontext abgelehnt (%s), spiele die neuesten 50", err)
+            log.info("Liked Songs refused as a context (%s), playing the newest 50", err)
         data = await self._request("GET", "/me/tracks", params={"limit": 50}) or {}
         uris = [it["track"]["uri"] for it in data.get("items", []) if it.get("track")]
         if uris:

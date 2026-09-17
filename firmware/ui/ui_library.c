@@ -1,7 +1,7 @@
 /**
- * Playlists: waagerecht wischbare Karten mit den Playlists aus Spotify.
- * Lieblingssongs zuerst (lila Verlauf mit Herz, wie in Spotify); antippen spielt die Playlist.
- * Braucht die Verbindung zur PC-App und dort den Spotify-Login.
+ * Playlists: horizontally swipeable cards with the playlists from Spotify.
+ * Liked Songs first (purple gradient with a heart, like in Spotify); tapping plays the playlist.
+ * Needs the link to the PC app and the Spotify login there.
  */
 #include <stdio.h>
 #include <string.h>
@@ -33,8 +33,8 @@ static struct {
     lv_obj_t * message_text;
     card_t cards[MAX_CARDS];
     size_t count;
-    int focus;          /* vom Knauf gewählte Karte */
-    bool focus_visible; /* Rahmen erst zeigen, wenn der Knauf benutzt wird */
+    int focus;          /* card chosen with the knob */
+    bool focus_visible; /* show the frame only once the knob is used */
     bool loaded;
     bool requested;
     uint32_t requested_tick;
@@ -59,7 +59,7 @@ void ui_library_build(lv_obj_t * view)
     lv_obj_set_style_bg_color(view, COL_INK, 0);
     lv_obj_set_style_bg_opa(view, LV_OPA_COVER, 0);
 
-    /* Kartenreihe: LVGLs eigenes Scrollen, rastet am Kartenanfang ein */
+    /* card row: LVGL's own scrolling, snaps to the start of a card */
     lib.rail = ui_plain_obj(view);
     lv_obj_set_size(lib.rail, SCREEN_W, RAIL_H);
     lv_obj_set_pos(lib.rail, 0, RAIL_Y);
@@ -70,10 +70,10 @@ void ui_library_build(lv_obj_t * view)
     lv_obj_set_flex_flow(lib.rail, LV_FLEX_FLOW_ROW);
     lv_obj_set_style_pad_left(lib.rail, 32, 0);
     lv_obj_set_style_pad_right(lib.rail, 32, 0);
-    lv_obj_set_style_pad_top(lib.rail, 10, 0); /* Platz für den Knauf-Rahmen über der Karte */
+    lv_obj_set_style_pad_top(lib.rail, 10, 0); /* room for the knob frame above the card */
     lv_obj_set_style_pad_column(lib.rail, 24, 0);
 
-    /* Hinweis statt Karten (keine Verbindung, lädt, kein Login) */
+    /* hint instead of cards (no connection, loading, no login) */
     lib.message = ui_plain_obj(view);
     lv_obj_set_size(lib.message, SCREEN_W, SCREEN_H - TOPBAR_H);
     lv_obj_set_pos(lib.message, 0, TOPBAR_H);
@@ -116,7 +116,7 @@ static void update_focus(void)
 void ui_library_knob_rotate(int32_t steps)
 {
     if(lib.count == 0 || lv_obj_has_flag(lib.rail, LV_OBJ_FLAG_HIDDEN)) return;
-    /* erster Dreh zeigt nur, wo man steht; danach springt der Rahmen von Karte zu Karte */
+    /* the first turn only shows where you are; after that the frame jumps from card to card */
     if(lib.focus_visible) lib.focus = LV_CLAMP(0, lib.focus + steps, (int)lib.count - 1);
     lib.focus_visible = true;
     update_focus();
@@ -153,13 +153,13 @@ static void build_card(card_t * card)
     card->art = art;
     lv_obj_remove_flag(art, LV_OBJ_FLAG_CLICKABLE);
     lv_obj_set_size(art, CARD_W, CARD_W);
-    /* Ecken rundet das Bild selbst ab; clip_corner kostet beim Wischen pro Karte eine Zwischenebene */
+    /* the picture rounds its own corners; clip_corner costs an extra layer per card while swiping */
     lv_obj_set_style_radius(art, 10, 0);
     lv_obj_set_style_bg_opa(art, LV_OPA_COVER, 0);
     lv_obj_set_style_margin_bottom(art, 10, 0);
 
     if(card->liked_songs) {
-        /* wie in Spotify: Verlauf Lila → Hellblau mit weißem Herz */
+        /* like in Spotify: purple → light blue gradient with a white heart */
         lv_obj_set_style_bg_color(art, lv_color_hex(0x450AF5), 0);
         lv_obj_set_style_bg_grad_color(art, lv_color_hex(0x8E8EE5), 0);
         lv_obj_set_style_bg_grad_dir(art, LV_GRAD_DIR_VER, 0);
@@ -177,7 +177,7 @@ static void build_card(card_t * card)
         set_card_image(card);
     }
 
-    /* feste Höhe = eine Zeile; nur dann kürzt LVGL mit „…“ statt umzubrechen */
+    /* fixed height = one line; only then LVGL shortens with "…" instead of wrapping */
     lv_obj_t * name = ui_text_label(btn, &fig_sb_28, COL_TEXT, card->name);
     lv_obj_set_size(name, CARD_W, lv_font_get_line_height(&fig_sb_28) + 4);
     lv_label_set_long_mode(name, LV_LABEL_LONG_MODE_DOTS);

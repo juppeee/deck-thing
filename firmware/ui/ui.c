@@ -1,8 +1,8 @@
 /**
- * Geräte-Oberfläche: Kopfleiste und Wiedergabe-Ansicht.
- * Display 800×480; Farben und Schriften in theme.h.
+ * Device interface: top bar and the music view.
+ * Display 800×480; colours and fonts in theme.h.
  *
- * Bibliothek, Tasten und Künstlerseite folgen in eigenen Dateien.
+ * Playlists, keys, audio and artist page live in their own files.
  */
 #include "ui.h"
 
@@ -14,13 +14,13 @@
 #include "theme.h"
 #include "ui_internal.h"
 
-/* gemeinsame Bausteine heißen nach außen ui_…, hier kurz */
+/* shared building blocks are called ui_… outside, short here */
 #define plain_obj   ui_plain_obj
 #define text_label  ui_text_label
 #define set_hidden  ui_set_hidden
 #define jpeg_size   ui_jpeg_size
 
-/* ---------- Maße ---------- */
+/* ---------- Dimensions ---------- */
 #define COVER_X          32
 #define COVER_Y          72
 #define COVER_SIZE       240
@@ -34,20 +34,20 @@
 #define CONTROLS_Y       380
 #define VOLPANEL_Y       236
 
-/* ---------- Zeiten ---------- */
+/* ---------- Timing ---------- */
 #define TICK_MS              16
-#define SCROLL_EVERY_MS      20000 /* abgeschnittene Zeilen laufen alle 20 s einmal durch */
-#define SCROLL_AFTER_TRACK   4000  /* und einmal kurz nach einem Songwechsel */
+#define SCROLL_EVERY_MS      20000 /* cut-off lines scroll through once every 20 s */
+#define SCROLL_AFTER_TRACK   4000  /* and once shortly after a track change */
 #define VOLPANEL_HIDE_MS     3000
 #define TOAST_MS             1600
-#define VOLUME_SEND_MS       80    /* Knaufbefehle bündeln */
-/* nach eigener Bedienung hat die Anzeige kurz Vorrang, der PC meldet den neuen Stand verzögert */
+#define VOLUME_SEND_MS       80    /* batch knob commands */
+/* after local input the display wins for a moment; the PC reports the new state late */
 #define HOLD_MODES_MS        2000
 #define HOLD_LIKE_MS         3000
-#define HOLD_VOLUME_MS       2500 /* Spotify meldet die neue Lautstärke spürbar verzögert */
+#define HOLD_VOLUME_MS       2500 /* Spotify reports the new volume noticeably late */
 #define HOLD_PLAY_MS         1500
 
-/* ---------- Welle ---------- */
+/* ---------- Wave ---------- */
 #define WAVE_STEP        2.0f
 #define WAVE_LEN         36.0f
 #define WAVE_AMP         5.0f
@@ -58,7 +58,7 @@
 #define TEXT_MAX 160
 
 
-/* ---------- Laufschrift für abgeschnittene Zeilen ---------- */
+/* ---------- Marquee for cut-off lines ---------- */
 typedef struct {
     lv_obj_t * clip;
     lv_obj_t * label;
@@ -69,13 +69,13 @@ typedef struct {
     bool running;
 } scroller_t;
 
-/* ---------- Zustand ---------- */
+/* ---------- State ---------- */
 static struct {
     char title[TEXT_MAX];
     char artists[TEXT_MAX];
     char context[TEXT_MAX];
     float pos_s;
-    uint32_t pos_tick; /* Zeitpunkt, zu dem pos_s galt */
+    uint32_t pos_tick; /* moment at which pos_s was valid */
     float dur_s;
     bool playing;
     uint8_t shuffle;
@@ -87,20 +87,20 @@ static struct {
     lv_color_t color;
     bool knob_present;
     bool connected;
-    bool from_pc;      /* false = Beispieldaten */
+    bool from_pc;      /* false = sample data */
     int demo_index;
     int view;
     uint32_t touched_modes, touched_like, touched_volume, touched_play, touched_seek;
-    bool seeking;      /* Finger liegt auf dem Fortschrittsbalken */
+    bool seeking;      /* finger is on the progress bar */
     float seek_pos;
-    struct { char id[40]; char name[96]; } artist_refs[6]; /* für die Künstlerseite */
+    struct { char id[40]; char name[96]; } artist_refs[6]; /* for the artist page */
     size_t artist_ref_count;
 } st;
 
-/* ---------- Objekte ---------- */
+/* ---------- Objects ---------- */
 static struct {
     lv_obj_t * bg_canvas;
-    uint16_t * bg_pixels; /* 800×480 RGB565, auf dem Gerät im PSRAM */
+    uint16_t * bg_pixels; /* 800×480 RGB565, in PSRAM on the device */
     lv_obj_t * views[VIEW_COUNT];
     lv_obj_t * tabs[TAB_COUNT];
     lv_obj_t * knob_icon;
@@ -123,7 +123,7 @@ static struct {
 
     lv_obj_t * btn_volume;
     lv_obj_t * btn_shuffle;
-    lv_obj_t * shuffle_sparkle; /* kleines Funkeln oben rechts = Smart Shuffle */
+    lv_obj_t * shuffle_sparkle; /* small sparkle top right = Smart Shuffle */
     lv_obj_t * btn_prev;
     lv_obj_t * btn_play;
     lv_obj_t * btn_next;
@@ -155,7 +155,7 @@ static void (*command_handler)(const char * json);
 
 static void show_offline(void);
 
-/* ---------- Beispieldaten, solange die PC-App nichts schickt ---------- */
+/* ---------- Sample data while the PC app sends nothing ---------- */
 static const struct {
     const char * title;
     const char * artists;
@@ -170,7 +170,7 @@ static const struct {
 #define DEMO_COUNT ((int)(sizeof(DEMO) / sizeof(DEMO[0])))
 
 /* =====================================================================
- *  Hilfen
+ *  Helpers
  * ===================================================================== */
 
 lv_obj_t * plain_obj(lv_obj_t * parent)
@@ -190,7 +190,7 @@ lv_obj_t * text_label(lv_obj_t * parent, const lv_font_t * font, lv_color_t colo
     return label;
 }
 
-/* Runde Symboltaste; das Symbol ist Kind 0, ein Aktiv-Punkt (falls gewünscht) Kind 1 */
+/* Round icon button; the icon is child 0, an active dot (if wanted) child 1 */
 static lv_obj_t * icon_button(lv_obj_t * parent, const char * icon, const lv_font_t * font,
                               int32_t w, int32_t h, lv_event_cb_t cb, bool with_dot)
 {
@@ -249,7 +249,7 @@ static float ease_in_out(float t)
     return 0.5f - 0.5f * cosf(PI_F * t);
 }
 
-/* Befehl an die PC-App (nur wenn echte Daten angezeigt werden) */
+/* Command to the PC app (only while real data is shown) */
 static void send_cmd(const char * cmd, const char * value_json)
 {
     if(!st.from_pc || command_handler == NULL) return;
@@ -260,7 +260,7 @@ static void send_cmd(const char * cmd, const char * value_json)
 }
 
 /* =====================================================================
- *  Laufschrift
+ *  Marquee
  * ===================================================================== */
 
 static void scroller_init(scroller_t * s, lv_obj_t * parent, const lv_font_t * font, lv_color_t color, int32_t width)
@@ -269,7 +269,7 @@ static void scroller_init(scroller_t * s, lv_obj_t * parent, const lv_font_t * f
     s->width = width;
     s->running = false;
     s->clip = plain_obj(parent);
-    /* etwas Luft unten, sonst schneidet der Rahmen die Unterlängen (g, y, p) ab */
+    /* a little room at the bottom, or the box cuts off descenders (g, y, p) */
     lv_obj_set_size(s->clip, width, lv_font_get_line_height(font) + 4);
     s->label = text_label(s->clip, font, color, "");
     lv_label_set_long_mode(s->label, LV_LABEL_LONG_MODE_DOTS);
@@ -304,12 +304,12 @@ static void scroller_start(scroller_t * s)
     lv_obj_set_width(s->label, size.x);
 }
 
-/* kurz halten, sanft zum Ende, halten, sanft zurück, halten, dann wieder „…“ */
+/* hold briefly, ease to the end, hold, ease back, hold, then "…" again */
 static void scroller_tick(scroller_t * s)
 {
     if(!s->running) return;
     const uint32_t hold = 1200;
-    const uint32_t travel = LV_MAX(1400, (uint32_t)s->dist * 1000 / 60); /* 60 px pro Sekunde */
+    const uint32_t travel = LV_MAX(1400, (uint32_t)s->dist * 1000 / 60); /* 60 px per second */
     const uint32_t t = lv_tick_elaps(s->start);
     float x;
     if(t < hold) x = 0;
@@ -325,7 +325,7 @@ static void scroller_tick(scroller_t * s)
 }
 
 /* =====================================================================
- *  Meldungen und Lautstärkeleiste (teilen sich dieselbe Stelle)
+ *  Messages and volume bar (they share the same spot)
  * ===================================================================== */
 
 static void toast_hide_cb(lv_timer_t * t)
@@ -369,7 +369,7 @@ static void volpanel_show(void)
     lv_timer_resume(ui.volpanel_timer);
 }
 
-/* schnelles Drehen erzeugt viele Schritte; nur den letzten Wert alle 80 ms schicken */
+/* fast turning makes many steps; only send the latest value every 80 ms */
 static void volume_send_cb(lv_timer_t * t)
 {
     char value[8];
@@ -390,11 +390,11 @@ static void volume_changed(void)
 }
 
 /* =====================================================================
- *  Anzeige aktualisieren
+ *  Updating the display
  * ===================================================================== */
 
-/* Waagerechter Verlauf mit 4×4-Bayer-Dithering. Bei 16 Bit Farbtiefe fehlen sonst Zwischenstufen
-   und der Verlauf zerfällt in sichtbare Streifen; LVGL 9 dithert Verläufe nicht mehr selbst. */
+/* Horizontal gradient with 4×4 Bayer dithering. At 16-bit colour the in-between steps are missing
+   and the gradient breaks into visible bands; LVGL 9 no longer dithers gradients itself. */
 static void render_background(lv_color_t left, lv_color_t right)
 {
     static const uint8_t BAYER[4][4] = {
@@ -421,10 +421,10 @@ static void update_background(void)
 {
     static lv_color_t last;
     static bool drawn;
-    if(drawn && lv_color_eq(last, st.color)) return; /* nur bei neuer Farbe neu rechnen */
+    if(drawn && lv_color_eq(last, st.color)) return; /* recompute only for a new colour */
     last = st.color;
     drawn = true;
-    /* links eingefärbt, rechts fast schwarz (wie der Entwurf) */
+    /* tinted on the left, almost black on the right (like the draft) */
     render_background(lv_color_mix(st.color, COL_INK, 140), lv_color_mix(st.color, COL_INK, 38));
     lv_obj_set_style_bg_color(ui.cover, lv_color_mix(st.color, COL_TEXT, 200), 0);
 }
@@ -433,7 +433,7 @@ static void update_buttons(void)
 {
     button_set_icon(ui.btn_play, st.playing ? ICON_PAUSE : ICON_PLAY, COL_INK);
 
-    /* Smart Shuffle wie bei Spotify: gleiches Zufalls-Symbol mit kleinem Funkeln */
+    /* Smart Shuffle like in Spotify: the same shuffle icon with a small sparkle */
     button_set_icon(ui.btn_shuffle, ICON_LC_SHUFFLE, st.shuffle ? COL_GREEN : COL_MUTED);
     button_set_dot(ui.btn_shuffle, st.shuffle != 0);
     set_hidden(ui.shuffle_sparkle, st.shuffle != 2);
@@ -441,15 +441,15 @@ static void update_buttons(void)
     button_set_icon(ui.btn_repeat, st.repeat == 2 ? ICON_LC_REPEAT_ONE : ICON_LC_REPEAT, st.repeat ? COL_GREEN : COL_MUTED);
     button_set_dot(ui.btn_repeat, st.repeat != 0);
 
-    /* Like bleibt an seinem Platz, solange ein Login da ist – sonst rückt die ganze Reihe beim Songwechsel;
-       ist der Status kurz unbekannt, nur abgedunkelt */
+    /* Like keeps its place while logged in – otherwise the whole row shifts on a track change;
+       while the state is briefly unknown it is only dimmed */
     set_hidden(ui.btn_like, st.from_pc && !st.spotify_login);
-    /* nicht gelikt: dünnes Plus im Kreis (Lucide); gelikt: gefüllter grüner Haken (Material), wie bei Spotify */
+    /* not liked: thin plus in a circle (Lucide); liked: filled green check (Material), like Spotify */
     lv_obj_set_style_text_font(lv_obj_get_child(ui.btn_like, 0), st.liked > 0 ? &mi_44 : &lc_36, 0);
     button_set_icon(ui.btn_like, st.liked > 0 ? ICON_CHECK_CIRCLE : ICON_LC_CIRCLE_PLUS, st.liked > 0 ? COL_GREEN : COL_MUTED);
     lv_obj_set_style_text_opa(lv_obj_get_child(ui.btn_like, 0), st.liked < 0 ? 90 : LV_OPA_COVER, 0);
 
-    /* mit Knauf keine zweite Lautstärketaste */
+    /* with a knob, no second volume button */
     set_hidden(ui.btn_volume, st.knob_present);
     lv_label_set_text(ui.conn_icon, st.connected ? ICON_USB : ICON_LINK_OFF);
     lv_obj_set_style_text_color(ui.conn_icon, st.connected ? COL_TEXT : COL_MUTED, 0);
@@ -459,7 +459,7 @@ static void update_texts(void)
 {
     bool has_context = st.context[0] != '\0';
     set_hidden(ui.context.clip, !has_context);
-    /* ohne Herkunftszeile rückt der Block etwas tiefer */
+    /* without a context line the block moves down a little */
     lv_obj_set_y(lv_obj_get_parent(ui.title.clip), has_context ? META_Y : META_Y + 30);
     scroller_set_text(&ui.context, st.context);
     scroller_set_text(&ui.title, st.title);
@@ -468,14 +468,14 @@ static void update_texts(void)
 
 static float current_pos(void)
 {
-    if(st.seeking) return st.seek_pos; /* beim Ziehen folgt die Welle dem Finger */
+    if(st.seeking) return st.seek_pos; /* while dragging the wave follows the finger */
     float pos = st.pos_s;
     if(st.playing) pos += lv_tick_elaps(st.pos_tick) / 1000.0f;
     if(st.dur_s > 0 && pos > st.dur_s) pos = st.dur_s;
     return pos;
 }
 
-/* Gespielter Teil als feste Welle über dem geraden grauen Strich; wächst nur mit der Position */
+/* played part as a fixed wave over the straight grey line; grows with the position only */
 static void update_wave(void)
 {
     float end = st.dur_s > 0 ? current_pos() / st.dur_s * PROGRESS_W : 0;
@@ -525,7 +525,7 @@ static void update_all(void)
 }
 
 /* =====================================================================
- *  Beispielbetrieb
+ *  Sample mode
  * ===================================================================== */
 
 static void demo_load(int index)
@@ -544,7 +544,7 @@ static void demo_load(int index)
 }
 
 /* =====================================================================
- *  Bedienung
+ *  Controls
  * ===================================================================== */
 
 static void set_playing(bool playing)
@@ -593,7 +593,7 @@ static void on_prev(lv_event_t * e)
 static void on_shuffle(lv_event_t * e)
 {
     LV_UNUSED(e);
-    /* Smart Shuffle lässt sich nur in Spotify einschalten; die Taste wechselt aus ↔ an */
+    /* Smart Shuffle can only be switched on in Spotify; the button toggles off ↔ on */
     st.shuffle = st.shuffle ? 0 : 1;
     st.touched_modes = lv_tick_get();
     update_buttons();
@@ -624,7 +624,7 @@ static void on_like(lv_event_t * e)
     send_cmd("like", st.liked ? "true" : "false");
 }
 
-/* Vorspulen: antippen oder ziehen, beim Loslassen an die Stelle springen */
+/* seeking: tap or drag, jump to the spot on release */
 static void on_progress(lv_event_t * e)
 {
     lv_event_code_t code = lv_event_get_code(e);
@@ -708,11 +708,11 @@ void ui_set_pages(bool music, bool playlists, bool keys, bool audio)
     int first = -1;
     for(int i = 0; i < TAB_COUNT; i++) if(visible[i] && first < 0) first = i;
     if(first < 0) {
-        first = VIEW_NOW; /* nie alles ausblenden */
+        first = VIEW_NOW; /* never hide everything */
         visible[VIEW_NOW] = true;
     }
     for(int i = 0; i < TAB_COUNT; i++) set_hidden(ui.tabs[i], !visible[i]);
-    /* offene Seite ausgeblendet: zur ersten sichtbaren (die Künstlerseite gehört zur Musik) */
+    /* open page hidden: go to the first visible one (the artist page belongs to music) */
     int current = st.view == VIEW_ARTIST ? VIEW_NOW : st.view;
     if(current < TAB_COUNT && !visible[current]) show_view(first);
 }
@@ -722,7 +722,7 @@ static void on_tab(lv_event_t * e)
     show_view((int)(intptr_t)lv_event_get_user_data(e));
 }
 
-/* ---------- Interpreten → Künstlerseite ---------- */
+/* ---------- Artists → artist page ---------- */
 
 static void on_chooser_item(lv_event_t * e)
 {
@@ -784,21 +784,21 @@ void ui_send_command(const char * cmd, const char * value_json)
 
 void ui_knob_rotate(int32_t steps)
 {
-    /* bei den Playlists blättert der Knauf durch die Karten, sonst ist er die Lautstärke */
+    /* on the playlists page the knob moves through the cards, otherwise it is the volume */
     if(st.view == VIEW_LIBRARY) {
         ui_library_knob_rotate(steps);
         return;
     }
     if(st.view == VIEW_ARTIST) {
-        ui_artist_knob_rotate(steps); /* auf der Künstlerseite durch die Alben */
+        ui_artist_knob_rotate(steps); /* on the artist page through the albums */
         return;
     }
     if(st.view == VIEW_DECK) {
-        ui_deck_knob_rotate(steps); /* auf der Tastenseite Taste wählen */
+        ui_deck_knob_rotate(steps); /* on the key page choose a key */
         return;
     }
     if(st.view == VIEW_AUDIO) {
-        ui_audio_knob_rotate(steps); /* auf der Audio-Seite die Gesamtlautstärke */
+        ui_audio_knob_rotate(steps); /* on the audio page the master volume */
         return;
     }
     if(st.view != VIEW_NOW) show_view(VIEW_NOW);
@@ -811,19 +811,19 @@ void ui_knob_rotate(int32_t steps)
 void ui_knob_press(void)
 {
     if(st.view == VIEW_LIBRARY) {
-        ui_library_knob_press(); /* markierte Playlist abspielen */
+        ui_library_knob_press(); /* play the marked playlist */
         return;
     }
     if(st.view == VIEW_ARTIST) {
-        ui_artist_knob_press(); /* markiertes Album abspielen */
+        ui_artist_knob_press(); /* play the marked album */
         return;
     }
     if(st.view == VIEW_DECK) {
-        ui_deck_knob_press(); /* markierte Taste auslösen */
+        ui_deck_knob_press(); /* trigger the marked key */
         return;
     }
     if(st.view == VIEW_AUDIO) {
-        ui_audio_knob_press(); /* Gesamt stumm */
+        ui_audio_knob_press(); /* mute master */
         return;
     }
     if(st.view != VIEW_NOW) show_view(VIEW_NOW);
@@ -836,13 +836,13 @@ void ui_set_knob_present(bool present)
     update_buttons();
 }
 
-/* Simulator: Mausrad und mittlere Maustaste des Windows-Treibers als Knauf auswerten,
-   statt LVGLs Fokus-Navigation auszulösen. Das echte Gerät ruft ui_knob_* direkt auf. */
+/* Simulator: treat the Windows driver's mouse wheel and middle button as the knob
+   instead of triggering LVGL's focus navigation. The real device calls ui_knob_* directly. */
 static void knob_read(lv_indev_t * indev, lv_indev_data_t * data)
 {
     static bool was_pressed;
     knob_original_read(indev, data);
-    if(data->enc_diff != 0) ui_knob_rotate(-data->enc_diff); /* Rad nach oben = lauter */
+    if(data->enc_diff != 0) ui_knob_rotate(-data->enc_diff); /* wheel up = louder */
     bool pressed = data->state == LV_INDEV_STATE_PRESSED;
     if(was_pressed && !pressed) ui_knob_press();
     was_pressed = pressed;
@@ -851,7 +851,7 @@ static void knob_read(lv_indev_t * indev, lv_indev_data_t * data)
 }
 
 /* =====================================================================
- *  Takt
+ *  Tick
  * ===================================================================== */
 
 static void tick_cb(lv_timer_t * t)
@@ -879,7 +879,7 @@ static void tick_cb(lv_timer_t * t)
 }
 
 /* =====================================================================
- *  Aufbau
+ *  Layout
  * ===================================================================== */
 
 static void build_topbar(lv_obj_t * screen)
@@ -928,7 +928,7 @@ static void build_topbar(lv_obj_t * screen)
 
 static void build_now_view(lv_obj_t * view)
 {
-    /* Hintergrund als selbst gezeichnetes Bild (gedithert), liegt hinter allem anderen */
+    /* background as a self-drawn image (dithered), behind everything else */
     ui.bg_pixels = lv_malloc((size_t)SCREEN_W * SCREEN_H * sizeof(uint16_t));
     ui.bg_canvas = lv_canvas_create(view);
     if(ui.bg_pixels != NULL) {
@@ -937,7 +937,7 @@ static void build_now_view(lv_obj_t * view)
     lv_obj_set_pos(ui.bg_canvas, 0, 0);
     lv_obj_remove_flag(ui.bg_canvas, LV_OBJ_FLAG_CLICKABLE);
 
-    /* Cover: Platzhalter mit Notensymbol, bis ein Bild von der PC-App kommt */
+    /* cover: placeholder with a note icon until a picture arrives from the PC app */
     ui.cover = plain_obj(view);
     lv_obj_set_size(ui.cover, COVER_SIZE, COVER_SIZE);
     lv_obj_set_pos(ui.cover, COVER_X, COVER_Y);
@@ -951,7 +951,7 @@ static void build_now_view(lv_obj_t * view)
     lv_obj_set_size(ui.cover_img, COVER_SIZE, COVER_SIZE);
     lv_obj_add_flag(ui.cover_img, LV_OBJ_FLAG_HIDDEN);
 
-    /* Herkunft, Titel, Interpreten */
+    /* context, title, artists */
     lv_obj_t * meta = plain_obj(view);
     lv_obj_set_size(meta, META_W, 200);
     lv_obj_set_pos(meta, META_X, META_Y);
@@ -961,13 +961,13 @@ static void build_now_view(lv_obj_t * view)
     scroller_init(&ui.title, meta, &fig_xb_42, COL_TEXT, META_W);
     scroller_init(&ui.artists, meta, &fig_md_30, COL_MUTED, META_W);
 
-    /* Fortschritt: grauer Strich über die volle Breite, darüber die weiße Welle */
+    /* progress: grey line across the full width, the white wave on top */
     lv_obj_t * progress = plain_obj(view);
     ui.progress = progress;
     lv_obj_set_size(progress, PROGRESS_W, PROGRESS_H);
     lv_obj_set_pos(progress, PROGRESS_X, PROGRESS_Y);
     lv_obj_add_flag(progress, LV_OBJ_FLAG_OVERFLOW_VISIBLE);
-    /* Vorspulen: der ganze Balken reagiert, mit etwas Rand, damit man ihn gut trifft */
+    /* seeking: the whole bar reacts, with some margin so it is easy to hit */
     lv_obj_add_flag(progress, LV_OBJ_FLAG_CLICKABLE);
     lv_obj_set_ext_click_area(progress, 28);
     lv_obj_add_event_cb(progress, on_progress, LV_EVENT_PRESSED, NULL);
@@ -976,7 +976,7 @@ static void build_now_view(lv_obj_t * view)
     lv_obj_add_event_cb(progress, on_progress, LV_EVENT_PRESS_LOST, NULL);
 
     lv_obj_t * track = plain_obj(progress);
-    lv_obj_remove_flag(track, LV_OBJ_FLAG_CLICKABLE); /* sonst schluckt der graue Strich den Tipp zum Vorspulen */
+    lv_obj_remove_flag(track, LV_OBJ_FLAG_CLICKABLE); /* otherwise the grey line swallows the tap for seeking */
     lv_obj_set_size(track, PROGRESS_W, 6);
     lv_obj_align(track, LV_ALIGN_LEFT_MID, 0, 0);
     lv_obj_set_style_radius(track, 3, 0);
@@ -992,7 +992,7 @@ static void build_now_view(lv_obj_t * view)
     lv_obj_remove_flag(ui.wave, LV_OBJ_FLAG_CLICKABLE);
     ui.wave_last_end = -1;
 
-    /* Punkt an der Fingerposition, nur beim Ziehen sichtbar */
+    /* dot at the finger position, only visible while dragging */
     ui.seek_dot = plain_obj(progress);
     lv_obj_remove_flag(ui.seek_dot, LV_OBJ_FLAG_CLICKABLE);
     lv_obj_set_size(ui.seek_dot, 22, 22);
@@ -1002,7 +1002,7 @@ static void build_now_view(lv_obj_t * view)
     lv_obj_set_style_bg_opa(ui.seek_dot, LV_OPA_COVER, 0);
     lv_obj_add_flag(ui.seek_dot, LV_OBJ_FLAG_HIDDEN);
 
-    /* Tastenreihe: (Lautstärke ohne Knauf) Zufall, Zurück, Play, Weiter, Wiederholen, Like */
+    /* button row: (volume without knob) shuffle, previous, play, next, repeat, like */
     lv_obj_t * row = plain_obj(view);
     lv_obj_set_size(row, SCREEN_W - 32, 88);
     lv_obj_set_pos(row, 16, CONTROLS_Y);
@@ -1011,7 +1011,7 @@ static void build_now_view(lv_obj_t * view)
 
     ui.btn_volume = icon_button(row, ICON_LC_VOLUME, &lc_36, 104, 88, on_volume_button, false);
     ui.btn_shuffle = icon_button(row, ICON_LC_SHUFFLE, &lc_36, 104, 88, on_shuffle, true);
-    ui.shuffle_sparkle = text_label(ui.btn_shuffle, &lc_16, COL_GREEN, ICON_LC_SPARKLE); /* Kind 2 */
+    ui.shuffle_sparkle = text_label(ui.btn_shuffle, &lc_16, COL_GREEN, ICON_LC_SPARKLE); /* child 2 */
     lv_obj_align(ui.shuffle_sparkle, LV_ALIGN_CENTER, 20, -18);
     lv_obj_add_flag(ui.shuffle_sparkle, LV_OBJ_FLAG_HIDDEN);
     ui.btn_prev = icon_button(row, ICON_PREV, &mi_44, 104, 88, on_prev, false);
@@ -1026,7 +1026,7 @@ static void build_now_view(lv_obj_t * view)
     ui.btn_repeat = icon_button(row, ICON_LC_REPEAT, &lc_36, 104, 88, on_repeat, true);
     ui.btn_like = icon_button(row, ICON_LC_CIRCLE_PLUS, &lc_36, 104, 88, on_like, false);
 
-    /* Lautstärkeleiste im freien Bereich unter Titel und Interpreten */
+    /* volume bar in the free area below title and artists */
     ui.volpanel = plain_obj(view);
     lv_obj_set_size(ui.volpanel, META_W, 64);
     lv_obj_set_pos(ui.volpanel, META_X, VOLPANEL_Y);
@@ -1064,7 +1064,7 @@ static void build_now_view(lv_obj_t * view)
     ui.volume_send_timer = lv_timer_create(volume_send_cb, VOLUME_SEND_MS, NULL);
     lv_timer_pause(ui.volume_send_timer);
 
-    /* Hinweis statt Wiedergabe (z. B. Spotify geschlossen) */
+    /* hint instead of playback (e.g. Spotify closed) */
     ui.status = plain_obj(view);
     lv_obj_set_size(ui.status, SCREEN_W, SCREEN_H - TOPBAR_H);
     lv_obj_set_pos(ui.status, 0, TOPBAR_H);
@@ -1081,11 +1081,11 @@ static void build_now_view(lv_obj_t * view)
     lv_label_set_long_mode(ui.status_text, LV_LABEL_LONG_MODE_WRAP);
     lv_obj_add_flag(ui.status, LV_OBJ_FLAG_HIDDEN);
 
-    /* Interpreten antippen öffnet die Künstlerseite (braucht Spotify-Login) */
+    /* tapping the artists opens the artist page (needs a Spotify login) */
     lv_obj_add_flag(ui.artists.clip, LV_OBJ_FLAG_CLICKABLE);
     lv_obj_add_event_cb(ui.artists.clip, on_artists, LV_EVENT_CLICKED, NULL);
 
-    /* Auswahl, wenn der Song mehrere Interpreten hat */
+    /* chooser when the song has several artists */
     ui.chooser = plain_obj(view);
     lv_obj_set_size(ui.chooser, SCREEN_W, SCREEN_H);
     lv_obj_set_style_bg_color(ui.chooser, lv_color_hex(0x000000), 0);
@@ -1136,7 +1136,7 @@ void ui_init(lv_display_t * display, lv_indev_t * knob)
     ui_artist_build(ui.views[VIEW_ARTIST]);
     build_topbar(screen);
 
-    /* Meldungen: an derselben Stelle wie die Lautstärkeleiste */
+    /* messages: in the same spot as the volume bar */
     ui.toast = text_label(lv_layer_top(), &fig_sb_24, COL_INK, "");
     lv_obj_set_style_bg_color(ui.toast, COL_TEXT, 0);
     lv_obj_set_style_bg_opa(ui.toast, LV_OPA_COVER, 0);
@@ -1154,15 +1154,16 @@ void ui_init(lv_display_t * display, lv_indev_t * knob)
     }
 
     show_view(VIEW_NOW);
+    ui_waiting_show(true); /* until the PC app says hello; the start animation plays on top of it */
     ui_splash_start();
     demo_load(0);
-    show_offline(); /* bis die PC-App sich meldet */
+    show_offline(); /* until the PC app says hello */
     update_clock();
     lv_timer_create(tick_cb, TICK_MS, NULL);
 }
 
 /* =====================================================================
- *  Daten von der PC-App
+ *  Data from the PC app
  * ===================================================================== */
 
 static void show_offline(void)
@@ -1180,8 +1181,9 @@ void ui_set_command_handler(void (*handler)(const char * json))
 void ui_set_connected(bool connected)
 {
     st.connected = connected;
+    ui_waiting_show(!connected);
     if(!connected) {
-        /* kein fremdes Cover stehen lassen; statt Wiedergabe den Hinweis zeigen */
+        /* don't leave a stale cover; show the hint instead of playback */
         st.from_pc = false;
         st.artist_ref_count = 0;
         lv_obj_add_flag(ui.cover_img, LV_OBJ_FLAG_HIDDEN);
@@ -1194,12 +1196,12 @@ void ui_set_connected(bool connected)
         show_offline();
     }
     else {
-        ui_set_status_message(NULL, NULL); /* der erste Zustand vom PC setzt gleich den richtigen Hinweis */
-        if(st.view == VIEW_DECK) ui_deck_on_show(); /* Tastenseite war offen, als die Verbindung kam */
+        ui_set_status_message(NULL, NULL); /* the first state from the PC sets the right hint right away */
+        if(st.view == VIEW_DECK) ui_deck_on_show(); /* key page was open when the connection came */
         if(st.view == VIEW_AUDIO) ui_audio_on_show();
     }
     if(connected && st.view == VIEW_LIBRARY) {
-        ui_library_on_show(); /* Bibliothek war offen, als die Verbindung kam */
+        ui_library_on_show(); /* playlists page was open when the connection came */
     }
     update_buttons();
 }
@@ -1217,11 +1219,11 @@ void ui_set_status_message(const char * title, const char * text)
     lv_obj_add_flag(ui.volpanel, LV_OBJ_FLAG_HIDDEN);
 }
 
-/* Breite und Höhe aus dem SOF-Abschnitt des JPEGs lesen. LVGLs TJPGD übernimmt sie bei Bildern
-   aus dem Speicher aus der Bildbeschreibung statt aus der Datei – mit 0 zeichnet es nichts. */
+/* Read width and height from the JPEG's SOF segment. For in-memory pictures LVGL's TJPGD takes
+   them from the image descriptor instead of the file – with 0 it draws nothing. */
 bool jpeg_size(const uint8_t * data, size_t len, uint16_t * w, uint16_t * h)
 {
-    size_t i = 2; /* hinter FF D8 */
+    size_t i = 2; /* after FF D8 */
     while(i + 9 < len) {
         if(data[i] != 0xFF) return false;
         uint8_t marker = data[i + 1];
@@ -1241,7 +1243,7 @@ void ui_set_cover_jpeg(const uint8_t * data, size_t len)
     lv_draw_buf_t * buf = ui_jpeg_decode(data, len);
     if(buf == NULL) return;
 
-    /* altes Bild aus der Anzeige lösen, bevor es freigegeben wird */
+    /* detach the old picture from the display before freeing it */
     lv_image_set_src(ui.cover_img, NULL);
     ui_image_free(ui.cover_buf);
     ui.cover_buf = buf;
@@ -1261,8 +1263,8 @@ void ui_set_playback(const ui_playback_t * pb)
     copy_text(st.artists, pb->artists);
     copy_text(st.context, pb->context);
 
-    /* Position nur nachziehen, wenn sie spürbar abweicht (Spulen, Songwechsel) – sonst ruckelt die Welle */
-    bool seek_hold = st.seeking || lv_tick_elaps(st.touched_seek) < 1500; /* nach dem Vorspulen nicht zurückspringen */
+    /* only adjust the position when it is noticeably off (seek, track change) – otherwise the wave stutters */
+    bool seek_hold = st.seeking || lv_tick_elaps(st.touched_seek) < 1500; /* don't jump back after seeking */
     if(track_changed || (!seek_hold && fabsf(pb->pos_s - current_pos()) > 1.0f)) {
         st.pos_s = pb->pos_s;
         st.pos_tick = lv_tick_get();

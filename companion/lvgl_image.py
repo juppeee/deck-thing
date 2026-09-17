@@ -1,11 +1,11 @@
-"""Bilder im Format, das LVGL auf dem Gerät direkt zeichnet."""
+"""Pictures in the format LVGL on the device draws directly."""
 
 from PIL import Image
 
 
 def rgb565a8(img: Image.Image) -> bytes:
-    """LVGL-Format RGB565A8: erst alle Farbwerte (16 Bit, little endian), dann alle Alphawerte.
-    Das Symbol bleibt so freigestellt, auch wenn die Taste beim Drücken ihre Farbe wechselt."""
+    """LVGL format RGB565A8: all colour values first (16 bit, little endian), then all alpha values.
+    The icon stays cut out even when the key changes its colour while pressed."""
     raw = img.convert("RGBA").tobytes()
     rgb = bytearray()
     for i in range(0, len(raw), 4):

@@ -11,7 +11,7 @@
 
 #define MAX_FRAME   (1024 * 1024)
 
-/* Rahmentypen */
+/* Frame types */
 #define PC_STATE    0x01
 #define PC_COVER    0x02
 #define PC_TOAST    0x03
@@ -39,7 +39,7 @@ static char hello[192];
 static lv_mutex_t inbox_mutex;
 static lv_mutex_t send_mutex;
 
-/* Ablage zwischen Transport- und LVGL-Thread (neuester Stand gewinnt, Bilder gehen nicht verloren) */
+/* Hand-over between transport and LVGL thread (newest state wins, pictures don't get lost) */
 static struct {
     char * state;
     blob_t cover;
@@ -53,10 +53,10 @@ static struct {
     int image_count;
     blob_t icons[MAX_PENDING_ICONS];
     int icon_count;
-    int connected; /* -1 unverändert, 0 getrennt, 1 verbunden */
+    int connected; /* -1 unchanged, 0 disconnected, 1 connected */
 } inbox = { .connected = -1 };
 
-/* Rahmen-Leser, gehört dem Transport-Thread */
+/* Frame reader, owned by the transport thread */
 static struct {
     uint8_t header[7];
     size_t header_fill;
@@ -65,7 +65,7 @@ static struct {
     size_t fill;
 } rx;
 
-/* ---------- Senden ---------- */
+/* ---------- Sending ---------- */
 
 static void send_frame(uint8_t type, const uint8_t * payload, size_t len)
 {
@@ -88,7 +88,7 @@ void link_send_hello(void)
     send_frame(DEV_HELLO, (const uint8_t *)hello, strlen(hello));
 }
 
-/* ---------- Empfangen (Transport-Thread) ---------- */
+/* ---------- Receiving (transport thread) ---------- */
 
 static void replace_ptr(char ** slot, char * value)
 {
@@ -107,7 +107,7 @@ static void queue_blob(blob_t * list, int * count, int max, uint8_t * data, size
     (*count)++;
 }
 
-/* übernimmt payload (freigeben, falls nicht abgelegt) */
+/* takes ownership of payload (freed if not stored) */
 static void handle_frame(uint8_t type, uint8_t * payload, size_t len)
 {
     lv_mutex_lock(&inbox_mutex);
@@ -151,7 +151,7 @@ void link_feed(const uint8_t * data, size_t len)
         if(rx.payload == NULL) {
             uint8_t b = *data++;
             len--;
-            /* auf den Rahmenanfang A5 5A synchronisieren */
+            /* sync to the frame start A5 5A */
             if(rx.header_fill == 0 && b != 0xA5) continue;
             if(rx.header_fill == 1 && b != 0x5A) {
                 rx.header_fill = (b == 0xA5) ? 1 : 0;
@@ -162,7 +162,7 @@ void link_feed(const uint8_t * data, size_t len)
             rx.header_fill = 0;
             rx.len = rx.header[3] | (rx.header[4] << 8) | ((size_t)rx.header[5] << 16) | ((size_t)rx.header[6] << 24);
             if(rx.len > MAX_FRAME) continue;
-            rx.payload = malloc(rx.len + 1); /* +1 für abschließende Null bei JSON */
+            rx.payload = malloc(rx.len + 1); /* +1 for the terminating null of JSON */
             rx.fill = 0;
             if(rx.payload == NULL) continue;
         }
@@ -189,7 +189,7 @@ void link_set_connected(bool connected)
     lv_mutex_unlock(&inbox_mutex);
 }
 
-/* ---------- Übernehmen (LVGL-Thread) ---------- */
+/* ---------- Applying (LVGL thread) ---------- */
 
 static const char * json_str(const cJSON * root, const char * key)
 {
@@ -254,7 +254,7 @@ static void apply_state(const char * json)
     const cJSON * spotify = cJSON_GetObjectItemCaseSensitive(root, "spotify");
     pb.spotify_login = cJSON_IsTrue(cJSON_GetObjectItemCaseSensitive(spotify, "login"));
     const cJSON * liked = cJSON_GetObjectItemCaseSensitive(root, "liked");
-    pb.liked = cJSON_IsBool(liked) ? (cJSON_IsTrue(liked) ? 1 : 0) : -1; /* null = gerade unbekannt */
+    pb.liked = cJSON_IsBool(liked) ? (cJSON_IsTrue(liked) ? 1 : 0) : -1; /* null = unknown right now */
 
     pb.volume = (int8_t)json_num(root, "vol", -1);
     pb.muted = cJSON_IsTrue(cJSON_GetObjectItemCaseSensitive(root, "muted"));
@@ -330,7 +330,7 @@ static void apply_keys(const char * json)
     cJSON * root = cJSON_Parse(json);
     if(root == NULL) return;
     const cJSON * pages = cJSON_GetObjectItemCaseSensitive(root, "pages");
-    const cJSON * page = cJSON_IsArray(pages) ? cJSON_GetArrayItem(pages, 0) : NULL; /* vorerst eine Seite */
+    const cJSON * page = cJSON_IsArray(pages) ? cJSON_GetArrayItem(pages, 0) : NULL; /* one page for now */
     const cJSON * keys = page ? cJSON_GetObjectItemCaseSensitive(page, "keys") : NULL;
     int count = cJSON_IsArray(keys) ? cJSON_GetArraySize(keys) : 0;
     ui_key_t * list = count > 0 ? calloc((size_t)count, sizeof(ui_key_t)) : NULL;
@@ -409,7 +409,7 @@ static void apply_audio(const char * json)
 static bool page_on(const cJSON * pages, const char * name)
 {
     const cJSON * item = cJSON_GetObjectItemCaseSensitive(pages, name);
-    return !cJSON_IsBool(item) || cJSON_IsTrue(item); /* fehlt = sichtbar */
+    return !cJSON_IsBool(item) || cJSON_IsTrue(item); /* missing = visible */
 }
 
 static void apply_pages(const char * json)
@@ -446,7 +446,7 @@ static void apply_timer(lv_timer_t * t)
     if(connected >= 0) ui_set_connected(connected == 1);
     if(pages != NULL) apply_pages(pages);
     if(state != NULL) apply_state(state);
-    if(cover.data != NULL && cover.len > 16) ui_set_cover_jpeg(cover.data + 16, cover.len - 16); /* 16 Zeichen Kennung vorweg */
+    if(cover.data != NULL && cover.len > 16) ui_set_cover_jpeg(cover.data + 16, cover.len - 16); /* 16-char id in front */
     if(toast != NULL) apply_toast(toast);
     if(library != NULL) apply_library(library);
     if(artist != NULL) apply_artist(artist);
@@ -459,7 +459,7 @@ static void apply_timer(lv_timer_t * t)
         ui_put_image(id, images[i].data + 16, images[i].len - 16);
         free(images[i].data);
     }
-    /* Tastensymbol: 16 Zeichen Kennung | Breite u16 | Höhe u16 | RGB565A8 – nach apply_keys, damit die Tasten schon stehen */
+    /* Key icon: 16-char id | width u16 | height u16 | RGB565A8 – after apply_keys so the keys already exist */
     for(int i = 0; i < icon_count; i++) {
         char id[17];
         memcpy(id, icons[i].data, 16);
@@ -467,7 +467,7 @@ static void apply_timer(lv_timer_t * t)
         uint16_t w = (uint16_t)(icons[i].data[16] | (icons[i].data[17] << 8));
         uint16_t h = (uint16_t)(icons[i].data[18] | (icons[i].data[19] << 8));
         ui_put_key_icon(id, w, h, icons[i].data + 20, icons[i].len - 20);
-        ui_put_audio_icon(id, w, h, icons[i].data + 20, icons[i].len - 20); /* gleiche Form, jede Seite nimmt ihre */
+        ui_put_audio_icon(id, w, h, icons[i].data + 20, icons[i].len - 20); /* same format, each page takes its own */
         free(icons[i].data);
     }
 

@@ -1,14 +1,14 @@
-"""Separater Update-Prozess für Deck Thing (wie Chrome oder VS Code).
+"""Separate update process for Deck Thing (like Chrome or VS Code).
 
-Ablauf:
-1. App lädt den Installer, prüft SHA-256 und ruft: deck_updater.exe --install <setup.exe>
-2. App beendet sich
-3. Updater kopiert sich nach TEMP (seine eigene Datei soll ersetzt werden) und läuft dort weiter
-4. Updater wartet, bis die App weg ist, beendet sie notfalls
-5. Updater führt den Installer still aus; der Installer startet die App neu
+Flow:
+1. The app downloads the installer, checks its SHA-256 and calls: deck_updater.exe --install <setup.exe>
+2. The app quits
+3. The updater copies itself to TEMP (its own file is about to be replaced) and carries on from there
+4. The updater waits until the app is gone, and ends it if needed
+5. The updater runs the installer silently; the installer starts the app again
 
-Übernommen vom Claude Session Browser (csb_updater.py), dort über mehrere Versionen erprobt.
-Bewusst ohne tasklist/taskkill: jeder Aufruf blitzt ein Konsolenfenster auf.
+Taken from the Claude Session Browser (csb_updater.py), where it was proven over several versions.
+Deliberately without tasklist/taskkill: every call flashes a console window.
 """
 import argparse
 import ctypes
@@ -91,7 +91,7 @@ def install_dir():
 
 
 def relaunch_from_temp(setup):
-    """Die eigene Datei liegt im Installationsordner und wäre beim Installieren gesperrt."""
+    """Our own file lives in the install folder and would be locked during the installation."""
     if not getattr(sys, "frozen", False):
         return False
     src = Path(sys.executable)
@@ -101,22 +101,22 @@ def relaunch_from_temp(setup):
             return False
         shutil.copy2(src, dst)
         subprocess.Popen([str(dst), "--install", str(setup), "--relaunched"], creationflags=DETACHED, close_fds=True)
-        log(f"weiter aus {dst}")
+        log(f"continuing from {dst}")
         return True
     except OSError as err:
-        log(f"Kopie nach TEMP ging nicht ({err}), mache hier weiter")
+        log(f"copying to TEMP failed ({err}), continuing here")
         return False
 
 
 def do_install(setup, relaunched):
     log(f"=== Deck Thing Updater {VERSION} === {setup}")
     if not os.path.exists(setup):
-        log("Installer fehlt")
+        log("installer missing")
         return False
     if not relaunched and relaunch_from_temp(setup):
         return True
     if not wait_until_gone(APP_EXE, 10):
-        log("App läuft noch, wird beendet")
+        log("app still running, ending it")
         kill(APP_EXE)
         wait_until_gone(APP_EXE, 5)
     lock = Path(os.environ.get("LOCALAPPDATA", ".")) / f"{APP_NAME}.instance.lock"
@@ -129,19 +129,19 @@ def do_install(setup, relaunched):
         code = subprocess.run([str(setup), "/VERYSILENT", "/SUPPRESSMSGBOXES", "/NORESTART", "/NOCANCEL"],
                               timeout=300).returncode
     except (OSError, subprocess.TimeoutExpired) as err:
-        log(f"Installer-Fehler: {err}")
+        log(f"installer error: {err}")
         return False
-    log(f"Installer beendet mit {code}")
+        log(f"installer finished with {code}")
     try:
         os.remove(setup)
     except OSError:
         pass
-    # Der Installer startet die App selbst ([Run] + DeinitializeSetup); nur falls nicht:
+    # The installer starts the app itself ([Run] + DeinitializeSetup); only if it didn't:
     time.sleep(3)
     app = install_dir() / APP_EXE
     if code == 0 and app.exists() and not pids_by_name(APP_EXE):
         subprocess.Popen([str(app)], creationflags=DETACHED, close_fds=True)
-        log("App gestartet")
+        log("app started")
     return code == 0
 
 

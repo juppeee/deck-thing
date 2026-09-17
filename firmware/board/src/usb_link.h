@@ -1,14 +1,14 @@
 /**
- * Transportweg USB: der eingebaute USB-Serial-Anschluss des ESP32-S3 (USB-C-Buchse „USB“ am Board).
- * Am PC erscheint ein serieller Port (VID 303A, PID 1001); die PC-App findet ihn von selbst.
+ * USB transport: the ESP32-S3's built-in USB serial (the board's USB-C socket labelled "USB").
+ * The PC sees a serial port (VID 303A, PID 1001); the PC app finds it by itself.
  */
 #pragma once
 
 #include <stddef.h>
 #include <stdint.h>
 
-/** Sendefunktion für link_init(). */
+/** Send function for link_init(). */
 void usb_link_send(const uint8_t * data, size_t len);
 
-/** Treiber und Empfangs-Task starten (nach link_init). */
+/** Start the driver and receive task (after link_init). */
 void usb_link_start(void);

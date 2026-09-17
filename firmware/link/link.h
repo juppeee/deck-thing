@@ -1,9 +1,9 @@
 /**
- * Verbindung zur PC-App, unabhängig vom Transportweg (TCP im Simulator, USB auf dem Board).
+ * Link to the PC app, independent of the transport (TCP in the simulator, USB on the board).
  *
- * Der Transport liefert empfangene Bytes aus seinem eigenen Thread (link_feed); ein LVGL-Timer
- * übernimmt fertige Rahmen in die Oberfläche, weil LVGL nicht threadsicher ist.
- *   Rahmen: A5 5A | Typ (1 Byte) | Länge (4 Byte, little endian) | Inhalt   – siehe docs/protocol.md
+ * The transport delivers received bytes from its own thread (link_feed); an LVGL timer
+ * applies complete frames to the interface, because LVGL is not thread-safe.
+ *   Frame: A5 5A | type (1 byte) | length (4 bytes, little endian) | payload   – see docs/protocol.md
  */
 #pragma once
 
@@ -11,20 +11,20 @@
 #include <stddef.h>
 #include <stdint.h>
 
-/** Schickt rohe Bytes zur PC-App. Wird unter einer Sperre aufgerufen, also nie gleichzeitig. */
+/** Sends raw bytes to the PC app. Called under a lock, so never concurrently. */
 typedef void (*link_send_fn)(const uint8_t * data, size_t len);
 
-/** Uhrzeit vom PC (Unix-Sekunden, Abstand zu UTC in Sekunden) – für Geräte ohne eigene Uhr, sonst NULL. */
+/** Time from the PC (Unix seconds, offset to UTC in seconds) – for devices without a clock, else NULL. */
 typedef void (*link_time_fn)(int64_t unix_seconds, int32_t utc_offset_seconds);
 
-/** Einmal aus dem LVGL-Thread aufrufen, bevor der Transport startet. hello_json wird kopiert. */
+/** Call once from the LVGL thread before the transport starts. hello_json is copied. */
 void link_init(link_send_fn send, link_time_fn on_time, const char * hello_json);
 
-/** Empfangene Bytes, in beliebigen Stücken (Transport-Thread). */
+/** Received bytes, in pieces of any size (transport thread). */
 void link_feed(const uint8_t * data, size_t len);
 
-/** Verbindung steht bzw. ist weg (Transport-Thread). Verwirft einen halb gelesenen Rahmen. */
+/** Connection is up or gone (transport thread). Drops a half-read frame. */
 void link_set_connected(bool connected);
 
-/** Meldet Gerät, Firmware und Fähigkeiten an die PC-App. */
+/** Reports device, firmware and capabilities to the PC app. */
 void link_send_hello(void);

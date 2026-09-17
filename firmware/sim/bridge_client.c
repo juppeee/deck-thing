@@ -1,6 +1,6 @@
 /**
- * Simulator: Transportweg TCP zur PC-App (127.0.0.1:8766). Rahmen lesen und auswerten übernimmt
- * link.c – hier nur verbinden, Bytes durchreichen und bei Abbruch neu verbinden.
+ * Simulator: TCP transport to the PC app (127.0.0.1:8766). link.c reads and applies the frames –
+ * this only connects, passes bytes through and reconnects when the connection drops.
  */
 #include <winsock2.h>
 #include <ws2tcpip.h>
@@ -18,7 +18,7 @@
 
 static SOCKET sock = INVALID_SOCKET;
 
-/* link.c ruft das nur unter seiner Sende-Sperre auf */
+/* link.c only calls this while holding its send lock */
 static void tcp_send(const uint8_t * data, size_t len)
 {
     SOCKET s = sock;
@@ -52,7 +52,7 @@ static DWORD WINAPI net_thread(LPVOID arg)
         sock = s;
         link_set_connected(true);
         link_send_hello();
-        printf("Brücke verbunden\n");
+        printf("bridge connected\n");
 
         for(;;) {
             int n = recv(s, (char *)buf, sizeof(buf), 0);
@@ -63,13 +63,13 @@ static DWORD WINAPI net_thread(LPVOID arg)
         sock = INVALID_SOCKET;
         closesocket(s);
         link_set_connected(false);
-        printf("Brücke getrennt, neuer Versuch in 2 s\n");
+        printf("bridge disconnected, retrying in 2 s\n");
         Sleep(2000);
     }
 }
 
 void bridge_client_start(void)
 {
-    link_init(tcp_send, NULL, HELLO); /* der PC-Rechner hat seine eigene Uhr */
+    link_init(tcp_send, NULL, HELLO); /* the PC has its own clock */
     CreateThread(NULL, 0, net_thread, NULL, 0, NULL);
 }
