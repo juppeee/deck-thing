@@ -220,10 +220,7 @@ static void apply_state(const char * json)
     }
 
     if(!cJSON_IsTrue(cJSON_GetObjectItemCaseSensitive(root, "session"))) {
-        if(cJSON_IsTrue(cJSON_GetObjectItemCaseSensitive(root, "spotify_running")))
-            ui_set_status_message("Gerade läuft nichts", "Starte einen Song in Spotify. Er erscheint dann hier.");
-        else
-            ui_set_status_message("Spotify ist nicht geöffnet", "Starte Spotify am PC. Der aktuelle Titel erscheint dann hier.");
+        ui_set_status_message("Gerade läuft nichts", "Starte Musik oder ein Video am PC – Spotify, YouTube, VLC und mehr.");
         cJSON_Delete(root);
         return;
     }
@@ -256,6 +253,30 @@ static void apply_state(const char * json)
     const cJSON * liked = cJSON_GetObjectItemCaseSensitive(root, "liked");
     pb.liked = cJSON_IsBool(liked) ? (cJSON_IsTrue(liked) ? 1 : 0) : -1; /* null = unknown right now */
 
+    const cJSON * can = cJSON_GetObjectItemCaseSensitive(root, "can");
+    pb.can_seek = cJSON_IsTrue(cJSON_GetObjectItemCaseSensitive(can, "seek"));
+    pb.can_shuffle = cJSON_IsTrue(cJSON_GetObjectItemCaseSensitive(can, "shuffle"));
+    pb.can_repeat = cJSON_IsTrue(cJSON_GetObjectItemCaseSensitive(can, "repeat"));
+    pb.can_prev = cJSON_IsTrue(cJSON_GetObjectItemCaseSensitive(can, "prev"));
+    pb.can_next = cJSON_IsTrue(cJSON_GetObjectItemCaseSensitive(can, "next"));
+    pb.source = json_str(root, "source");
+    pb.spotify = cJSON_IsTrue(cJSON_GetObjectItemCaseSensitive(root, "is_spotify"));
+
+    ui_source_t sources[8];
+    const cJSON * sources_json = cJSON_GetObjectItemCaseSensitive(root, "sources");
+    size_t source_count = 0;
+    for(int i = 0; cJSON_IsArray(sources_json) && i < cJSON_GetArraySize(sources_json) && source_count < 8; i++) {
+        const cJSON * src = cJSON_GetArrayItem(sources_json, i);
+        sources[source_count].id = json_str(src, "id");
+        sources[source_count].name = json_str(src, "name");
+        sources[source_count].playing = cJSON_IsTrue(cJSON_GetObjectItemCaseSensitive(src, "playing"));
+        source_count++;
+    }
+    pb.sources = sources;
+    pb.source_count = source_count;
+
+    const cJSON * vol = cJSON_GetObjectItemCaseSensitive(root, "vol");
+    pb.has_volume = cJSON_IsNumber(vol);
     pb.volume = (int8_t)json_num(root, "vol", -1);
     pb.muted = cJSON_IsTrue(cJSON_GetObjectItemCaseSensitive(root, "muted"));
     pb.color = json_color(root, "color", 0x333333);

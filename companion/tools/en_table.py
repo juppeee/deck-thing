@@ -189,9 +189,9 @@ EN = {
 
     # Pages on the device
     "Seiten am Gerät": "Pages on the device",
-    "Nur eingeschaltete Seiten stehen oben am Display. Wer das Gerät nur für Tasten und Audio nutzt, blendet die Musik aus.":
-        "Only pages that are switched on appear at the top of the display. If you only use the device for keys and audio, hide the music.",
-    "Musik": "Music",
+    "Nur eingeschaltete Seiten stehen oben am Display. Wer das Gerät nur für Tasten und Audio nutzt, blendet die Medien aus.":
+        "Only pages that are switched on appear at the top of the display. If you only use the device for keys and audio, hide media.",
+    "Medien": "Media",
     "Playlists": "Playlists",
     "Audio": "Audio",
     "Mindestens eine Seite bleibt an": "At least one page stays on",

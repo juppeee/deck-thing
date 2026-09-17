@@ -10,7 +10,7 @@
 [![UI](https://img.shields.io/badge/App-pywebview%20%2B%20WebView2-1ed760)](https://pywebview.flowrl.com/)
 [![License](https://img.shields.io/badge/License-MIT-3ecf8e)](LICENSE)
 
-**A 4.3" touch display for your desk — what Spotify is playing, your own shortcut keys and a volume mixer for every app, one swipe apart.**
+**A 4.3" touch display for your desk — what's playing (Spotify, YouTube, VLC and more), your own shortcut keys and a volume mixer for every app, one swipe apart.**
 
 <sub>Work in progress — firmware and app run on the real board; no release yet</sub>
 
@@ -30,8 +30,9 @@ on a desk instead of a dashboard, with parts you can simply buy.
 
 ## What you get
 
-- **Music** — cover, title, artists, where the music comes from, and a progress bar you can tap to seek
-- **All the controls** — play, skip, shuffle and Smart Shuffle, repeat, like
+- **Media** — whatever plays on your PC: Spotify, YouTube or Twitch in the browser, VLC, Apple Music and more; tap the source on the cover to switch
+- **Now playing** — cover, title, artists, where the music comes from, and a progress bar you can tap to seek
+- **All the controls** — play, skip, shuffle and Smart Shuffle, repeat, like (Spotify extras only where Spotify plays)
 - **Playlists** — your playlists and Liked Songs as cards, one tap to play; tap an artist for their albums
 - **Keys** — up to 48 buttons with your own names, icons, emoji or pictures, running shortcuts, programs, scripts or links
 - **Free keys** — F13 to F24 exist in Windows but on no keyboard, so they never clash with anything
@@ -117,7 +118,7 @@ Four pages sit along the top of the display. Each one can be switched off under
 
 | Page | What it shows |
 |---|---|
-| **Music** | What's playing, with all controls and the volume slider |
+| **Media** | What's playing in any player, with the controls the player supports and its volume |
 | **Playlists** | Your playlists and Liked Songs; tap one to play it |
 | **Keys** | Your shortcut keys — pages to the right or rows below |
 | **Audio** | The volume mixer |

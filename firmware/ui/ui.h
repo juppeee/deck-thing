@@ -18,8 +18,21 @@ typedef struct {
     const char * name;
 } ui_artist_ref_t;
 
+/** A media source Windows knows about (Spotify, a browser, VLC, …). */
+typedef struct {
+    const char * id;        /* short id for the "source" command */
+    const char * name;      /* "Spotify", "Chrome", "VLC" */
+    bool playing;
+} ui_source_t;
+
 /** Playback state as the PC app sends it. */
 typedef struct {
+    const char * source;            /* name of the source shown, e.g. "Chrome" */
+    bool spotify;                   /* the source is Spotify: like, artist page and playlists apply */
+    const ui_source_t * sources;    /* all sources, for switching; count 0 = only the one shown */
+    size_t source_count;
+    bool can_seek, can_shuffle, can_repeat, can_prev, can_next;
+    bool has_volume;                /* the source's volume can be set */
     const ui_artist_ref_t * artist_refs; /* only with a Spotify login; else NULL */
     size_t artist_ref_count;
     const char * title;     /* song title */

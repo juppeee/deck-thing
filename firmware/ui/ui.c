@@ -94,6 +94,12 @@ static struct {
     bool seeking;      /* finger is on the progress bar */
     float seek_pos;
     struct { char id[40]; char name[96]; } artist_refs[6]; /* for the artist page */
+    char source[40];
+    bool spotify;
+    struct { char id[20]; char name[40]; bool playing; } sources[8];
+    size_t source_count;
+    bool can_seek, can_shuffle, can_repeat, can_prev, can_next, has_volume;
+    bool chooser_sources; /* the chooser lists sources, not artists */
     size_t artist_ref_count;
 } st;
 
@@ -143,6 +149,9 @@ static struct {
 
     lv_obj_t * chooser;
     lv_obj_t * chooser_list;
+    lv_obj_t * source_pill;
+    lv_obj_t * source_label;
+    lv_obj_t * source_chevron;
     lv_obj_t * status_text;
 
     lv_obj_t * toast;
@@ -443,14 +452,27 @@ static void update_buttons(void)
 
     /* Like keeps its place while logged in – otherwise the whole row shifts on a track change;
        while the state is briefly unknown it is only dimmed */
-    set_hidden(ui.btn_like, st.from_pc && !st.spotify_login);
+    set_hidden(ui.btn_like, st.from_pc && !(st.spotify && st.spotify_login));
+    /* other players: only what the source supports */
+    set_hidden(ui.btn_shuffle, st.from_pc && !st.can_shuffle);
+    set_hidden(ui.btn_repeat, st.from_pc && !st.can_repeat);
+    lv_obj_set_style_opa(ui.btn_prev, !st.from_pc || st.can_prev ? LV_OPA_COVER : 90, 0);
+    lv_obj_set_style_opa(ui.btn_next, !st.from_pc || st.can_next ? LV_OPA_COVER : 90, 0);
+    set_hidden(ui.progress, st.from_pc && st.dur_s <= 0);
+
+    bool show_source = st.from_pc && st.source[0] != '\0';
+    set_hidden(ui.source_pill, !show_source);
+    if(show_source) {
+        lv_label_set_text(ui.source_label, st.source);
+        set_hidden(ui.source_chevron, st.source_count < 2);
+    }
     /* not liked: thin plus in a circle (Lucide); liked: filled green check (Material), like Spotify */
     lv_obj_set_style_text_font(lv_obj_get_child(ui.btn_like, 0), st.liked > 0 ? &mi_44 : &lc_36, 0);
     button_set_icon(ui.btn_like, st.liked > 0 ? ICON_CHECK_CIRCLE : ICON_LC_CIRCLE_PLUS, st.liked > 0 ? COL_GREEN : COL_MUTED);
     lv_obj_set_style_text_opa(lv_obj_get_child(ui.btn_like, 0), st.liked < 0 ? 90 : LV_OPA_COVER, 0);
 
     /* with a knob, no second volume button */
-    set_hidden(ui.btn_volume, st.knob_present);
+    set_hidden(ui.btn_volume, st.knob_present || (st.from_pc && !st.has_volume));
     lv_label_set_text(ui.conn_icon, st.connected ? ICON_USB : ICON_LINK_OFF);
     lv_obj_set_style_text_color(ui.conn_icon, st.connected ? COL_TEXT : COL_MUTED, 0);
 }
@@ -627,6 +649,7 @@ static void on_like(lv_event_t * e)
 /* seeking: tap or drag, jump to the spot on release */
 static void on_progress(lv_event_t * e)
 {
+    if(st.from_pc && !st.can_seek) return; /* the source can't seek */
     lv_event_code_t code = lv_event_get_code(e);
     if(st.dur_s <= 0) return;
 
@@ -728,6 +751,16 @@ static void on_chooser_item(lv_event_t * e)
 {
     size_t i = (size_t)(intptr_t)lv_event_get_user_data(e);
     lv_obj_add_flag(ui.chooser, LV_OBJ_FLAG_HIDDEN);
+    if(st.chooser_sources) {
+        if(i < st.source_count) {
+            char value[32];
+            snprintf(value, sizeof(value), "\"%s\"", st.sources[i].id);
+            send_cmd("source", value);
+            copy_text(st.source, st.sources[i].name); /* show the choice at once; the PC confirms */
+            update_buttons();
+        }
+        return;
+    }
     if(i < st.artist_ref_count) ui_artist_open(st.artist_refs[i].id, st.artist_refs[i].name);
 }
 
@@ -739,11 +772,12 @@ static void on_chooser_backdrop(lv_event_t * e)
 static void on_artists(lv_event_t * e)
 {
     LV_UNUSED(e);
-    if(!st.connected || !st.spotify_login || st.artist_ref_count == 0) return;
+    if(!st.connected || !st.spotify || !st.spotify_login || st.artist_ref_count == 0) return;
     if(st.artist_ref_count == 1) {
         ui_artist_open(st.artist_refs[0].id, st.artist_refs[0].name);
         return;
     }
+    st.chooser_sources = false;
     lv_obj_clean(ui.chooser_list);
     text_label(ui.chooser_list, &fig_sb_20, COL_MUTED, "Interpreten");
     for(size_t i = 0; i < st.artist_ref_count; i++) {
@@ -759,6 +793,36 @@ static void on_artists(lv_event_t * e)
         lv_obj_set_width(label, LV_PCT(100));
         lv_label_set_long_mode(label, LV_LABEL_LONG_MODE_DOTS);
         lv_obj_align(label, LV_ALIGN_LEFT_MID, 0, 0);
+    }
+    lv_obj_remove_flag(ui.chooser, LV_OBJ_FLAG_HIDDEN);
+}
+
+/* Source pill on the cover: pick which player the page shows */
+static void on_source(lv_event_t * e)
+{
+    LV_UNUSED(e);
+    if(!st.connected || st.source_count < 2) return;
+    st.chooser_sources = true;
+    lv_obj_clean(ui.chooser_list);
+    text_label(ui.chooser_list, &fig_sb_20, COL_MUTED, "Quelle");
+    for(size_t i = 0; i < st.source_count; i++) {
+        lv_obj_t * item = lv_button_create(ui.chooser_list);
+        lv_obj_remove_style_all(item);
+        lv_obj_set_size(item, LV_PCT(100), 64);
+        lv_obj_set_style_radius(item, 12, 0);
+        lv_obj_set_style_pad_hor(item, 14, 0);
+        lv_obj_set_style_bg_color(item, COL_TEXT, 0);
+        lv_obj_set_style_bg_opa(item, strcmp(st.sources[i].name, st.source) == 0 ? 18 : LV_OPA_TRANSP, 0);
+        lv_obj_set_style_bg_opa(item, 36, LV_STATE_PRESSED);
+        lv_obj_add_event_cb(item, on_chooser_item, LV_EVENT_CLICKED, (void *)(intptr_t)i);
+        lv_obj_t * label = text_label(item, &fig_sb_28, COL_TEXT, st.sources[i].name);
+        lv_obj_set_width(label, 300);
+        lv_label_set_long_mode(label, LV_LABEL_LONG_MODE_DOTS);
+        lv_obj_align(label, LV_ALIGN_LEFT_MID, 0, 0);
+        if(st.sources[i].playing) {
+            lv_obj_t * note = text_label(item, &mi_28, COL_GREEN, ICON_VOLUME);
+            lv_obj_align(note, LV_ALIGN_RIGHT_MID, 0, 0);
+        }
     }
     lv_obj_remove_flag(ui.chooser, LV_OBJ_FLAG_HIDDEN);
 }
@@ -885,7 +949,7 @@ static void tick_cb(lv_timer_t * t)
 static void build_topbar(lv_obj_t * screen)
 {
     static const struct { const char * icon; const char * text; } TABS[TAB_COUNT] = {
-        { ICON_MUSIC, "Musik" }, { ICON_LIBRARY, "Playlists" }, { ICON_GRID, "Tasten" }, { ICON_TUNE, "Audio" },
+        { ICON_MUSIC, "Medien" }, { ICON_LIBRARY, "Playlists" }, { ICON_GRID, "Tasten" }, { ICON_TUNE, "Audio" },
     };
 
     lv_obj_t * bar = plain_obj(screen);
@@ -950,6 +1014,30 @@ static void build_now_view(lv_obj_t * view)
     ui.cover_img = lv_image_create(ui.cover);
     lv_obj_set_size(ui.cover_img, COVER_SIZE, COVER_SIZE);
     lv_obj_add_flag(ui.cover_img, LV_OBJ_FLAG_HIDDEN);
+
+    /* source pill in the cover's bottom-left corner: where the media comes from, tap to switch */
+    ui.source_pill = lv_button_create(view);
+    lv_obj_remove_style_all(ui.source_pill);
+    lv_obj_set_size(ui.source_pill, LV_SIZE_CONTENT, 36);
+    lv_obj_set_style_max_width(ui.source_pill, COVER_SIZE - 20, 0);
+    lv_obj_set_pos(ui.source_pill, COVER_X + 10, COVER_Y + COVER_SIZE - 46);
+    lv_obj_set_style_radius(ui.source_pill, 18, 0);
+    lv_obj_set_style_bg_color(ui.source_pill, lv_color_black(), 0);
+    lv_obj_set_style_bg_opa(ui.source_pill, 180, 0);
+    lv_obj_set_style_bg_opa(ui.source_pill, 230, LV_STATE_PRESSED);
+    lv_obj_set_style_pad_left(ui.source_pill, 14, 0);
+    lv_obj_set_style_pad_right(ui.source_pill, 12, 0);
+    lv_obj_set_flex_flow(ui.source_pill, LV_FLEX_FLOW_ROW);
+    lv_obj_set_flex_align(ui.source_pill, LV_FLEX_ALIGN_START, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER);
+    lv_obj_set_style_pad_column(ui.source_pill, 6, 0);
+    lv_obj_set_ext_click_area(ui.source_pill, 8);
+    lv_obj_add_event_cb(ui.source_pill, on_source, LV_EVENT_CLICKED, NULL);
+    ui.source_label = text_label(ui.source_pill, &fig_sb_20, COL_TEXT, "");
+    lv_label_set_long_mode(ui.source_label, LV_LABEL_LONG_MODE_DOTS);
+    lv_obj_set_height(ui.source_label, lv_font_get_line_height(&fig_sb_20));
+    lv_obj_set_style_max_width(ui.source_label, COVER_SIZE - 70, 0);
+    ui.source_chevron = text_label(ui.source_pill, &lc_16, COL_TEXT, ICON_LC_CHEVRON_DOWN);
+    lv_obj_add_flag(ui.source_pill, LV_OBJ_FLAG_HIDDEN);
 
     /* context, title, artists */
     lv_obj_t * meta = plain_obj(view);
@@ -1277,6 +1365,21 @@ void ui_set_playback(const ui_playback_t * pb)
         st.repeat = pb->repeat;
     }
     st.spotify_login = pb->spotify_login;
+    copy_text(st.source, pb->source);
+    st.spotify = pb->spotify;
+    st.can_seek = pb->can_seek;
+    st.can_shuffle = pb->can_shuffle;
+    st.can_repeat = pb->can_repeat;
+    st.can_prev = pb->can_prev;
+    st.can_next = pb->can_next;
+    st.has_volume = pb->has_volume;
+    st.source_count = 0;
+    for(size_t i = 0; pb->sources && i < pb->source_count && i < 8; i++) {
+        snprintf(st.sources[i].id, sizeof(st.sources[i].id), "%s", pb->sources[i].id ? pb->sources[i].id : "");
+        snprintf(st.sources[i].name, sizeof(st.sources[i].name), "%s", pb->sources[i].name ? pb->sources[i].name : "");
+        st.sources[i].playing = pb->sources[i].playing;
+        st.source_count++;
+    }
     st.artist_ref_count = 0;
     for(size_t i = 0; pb->artist_refs && i < pb->artist_ref_count && i < 6; i++) {
         snprintf(st.artist_refs[i].id, sizeof(st.artist_refs[i].id), "%s", pb->artist_refs[i].id ? pb->artist_refs[i].id : "");

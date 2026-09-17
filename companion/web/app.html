@@ -295,9 +295,9 @@
     <div class="section-title">Gerät</div>
     <div class="setting">
       <div class="setting-head"><span class="setting-icon"><i class="icon-layout-grid"></i></span>
-        <div><b>Seiten am Gerät</b><span>Nur eingeschaltete Seiten stehen oben am Display. Wer das Gerät nur für Tasten und Audio nutzt, blendet die Musik aus.</span></div></div>
+        <div><b>Seiten am Gerät</b><span>Nur eingeschaltete Seiten stehen oben am Display. Wer das Gerät nur für Tasten und Audio nutzt, blendet die Medien aus.</span></div></div>
       <div class="chips" id="pages">
-        <button class="chip" data-page="music"><i class="icon-music"></i>Musik</button>
+        <button class="chip" data-page="music"><i class="icon-music"></i>Medien</button>
         <button class="chip" data-page="playlists"><i class="icon-library-big"></i>Playlists</button>
         <button class="chip" data-page="keys"><i class="icon-grid-2x2"></i>Tasten</button>
         <button class="chip" data-page="audio"><i class="icon-sliders-vertical"></i>Audio</button>
@@ -487,7 +487,7 @@
     $("now").hidden = !status.playing;
     if (status.playing) {
       $("nowTitle").textContent = status.playing.title || "";
-      $("nowArtist").textContent = [status.playing.artist, status.playing.context].filter(Boolean).join(" · ");
+      $("nowArtist").textContent = [status.playing.artist, status.playing.context, status.playing.source].filter(Boolean).join(" · ");
       if (status.playing.cover && $("nowCover").getAttribute("src") !== status.playing.cover) $("nowCover").src = status.playing.cover;
     }
     $("spotifyActions").hidden = sp.login;

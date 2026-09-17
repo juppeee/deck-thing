@@ -76,17 +76,56 @@ UI_TO_SMTC_REPEAT = {v: k for k, v in SMTC_TO_UI_REPEAT.items()}
 log = logging.getLogger("bridge")
 
 
-class SpotifyVolume:
-    """Volume of Spotify only, through its session in the Windows mixer.
+# Media sources: SMTC app id (lower case) contains … → shown name, process name prefix for the volume
+KNOWN_SOURCES = [
+    ("spotify", "Spotify", "spotify"),
+    ("chrome", "Chrome", "chrome"),
+    ("msedge", "Edge", "msedge"),
+    ("firefox", "Firefox", "firefox"),
+    ("308046b0af4a39cb", "Firefox", "firefox"),  # Firefox registers under this hash
+    ("opera", "Opera", "opera"),
+    ("brave", "Brave", "brave"),
+    ("vivaldi", "Vivaldi", "vivaldi"),
+    ("vlc", "VLC", "vlc"),
+    ("zunemusic", "Media Player", "microsoft.media.player"),
+    ("zunevideo", "Filme & TV", "video.ui"),
+    ("applemusic", "Apple Music", "applemusic"),
+    ("itunes", "iTunes", "itunes"),
+    ("tidal", "TIDAL", "tidal"),
+    ("deezer", "Deezer", "deezer"),
+    ("amazonmusic", "Amazon Music", "amazon music"),
+    ("discord", "Discord", "discord"),
+    ("foobar2000", "foobar2000", "foobar2000"),
+    ("musicbee", "MusicBee", "musicbee"),
+    ("aimp", "AIMP", "aimp"),
+    ("winamp", "Winamp", "winamp"),
+]
+
+
+def source_info(app_id: str | None) -> tuple[str, str]:
+    """Shown name and process name prefix for an SMTC app id, e.g. "chrome" → ("Chrome", "chrome")."""
+    raw = app_id or ""
+    low = raw.lower()
+    for needle, name, process in KNOWN_SOURCES:
+        if needle in low:
+            return name, process
+    # unknown: "Company.Product_hash!App" or "Some Player.exe"
+    token = raw.split("!")[0].split("\\")[-1]
+    token = re.sub(r"\.exe$", "", token, flags=re.IGNORECASE).split("_")[0].split(".")[-1]
+    return (token[:1].upper() + token[1:]) if token else "?", token.lower()
+
+
+class AppVolume:
+    """Volume of the app being shown (Spotify, a browser, VLC …), through its session in the Windows mixer.
 
     pycaw speaks COM, so everything runs on its own thread with CoInitialize.
-    Spotify starts several processes (desktop and Store version are both
-    called Spotify.exe); we take every session whose process name starts with
-    "spotify".
+    A program can run several processes (Spotify, browsers); every session whose process
+    name starts with the current prefix counts.
     """
 
     def __init__(self) -> None:
         self._pool = ThreadPoolExecutor(max_workers=1, initializer=self._init_com)
+        self.process = "spotify"  # process name prefix of the source shown
 
     @staticmethod
     def _init_com() -> None:
@@ -94,8 +133,7 @@ class SpotifyVolume:
 
         comtypes.CoInitialize()
 
-    @staticmethod
-    def _volumes():
+    def _volumes(self):
         from pycaw.pycaw import AudioUtilities
 
         found = []
@@ -107,7 +145,7 @@ class SpotifyVolume:
                 name = proc.name().lower()
             except Exception:
                 continue
-            if name.startswith("spotify"):
+            if self.process and name.startswith(self.process):
                 found.append(session.SimpleAudioVolume)
         return found
 
@@ -471,16 +509,6 @@ def device_text(text: str | None) -> str:
     return re.sub(r"\s{2,}", " ", kept).strip()
 
 
-def spotify_process_running() -> bool:
-    """Desktop and Store version both run as Spotify.exe."""
-    import psutil
-
-    for proc in psutil.process_iter(["name"]):
-        if (proc.info.get("name") or "").lower().startswith("spotify"):
-            return True
-    return False
-
-
 FEAT_RE = re.compile(r"\s*[(\[]\s*(?:feat\.?|ft\.?|featuring|with)\s+([^)\]]+)[)\]]", re.IGNORECASE)
 
 
@@ -534,7 +562,10 @@ class Bridge:
         self.devices: set["DeviceClient"] = set()
         self.covers: dict[str, bytes] = {}
         self.images: dict[tuple[str, int], bytes] = {}  # playlist/artist pictures for the device
-        self.volume = SpotifyVolume()
+        self.volume = AppVolume()
+        self.pinned_source: str | None = None  # SMTC app id the user chose on the device
+        self._auto_source: str | None = None
+        self.sources: list[dict] = []
         self.mixer = AudioMixer()
         self.spotify = SpotifyAPI()
         self.manager = None
@@ -569,12 +600,37 @@ class Bridge:
     # ---------- Lesen: Windows ----------
 
     def _pick_session(self):
-        """Spotify only, no other player. The desktop app reports itself as "Spotify.exe",
-        the Store version as "SpotifyAB.SpotifyMusic_…!Spotify"."""
-        for s in self.manager.get_sessions():
-            if "spotify" in (s.source_app_user_model_id or "").lower():
-                return s
-        return None
+        """Every player Windows knows (Spotify, browsers, VLC, …). The one chosen on the device wins
+        while it exists; otherwise the one playing – the current choice stays until something else
+        plays while it is paused – and failing that Windows' current session."""
+        sessions = list(self.manager.get_sessions())
+        by_id = {s.source_app_user_model_id: s for s in sessions}
+
+        def is_playing(sess) -> bool:
+            try:
+                return sess.get_playback_info().playback_status == PlaybackStatus.PLAYING
+            except Exception:
+                return False
+
+        self.sources = [{"id": hashlib.sha1((s.source_app_user_model_id or "").encode()).hexdigest()[:12],
+                         "app": s.source_app_user_model_id, "name": source_info(s.source_app_user_model_id)[0],
+                         "playing": is_playing(s)} for s in sessions]
+        if self.pinned_source and self.pinned_source not in by_id:
+            self.pinned_source = None  # that player is gone: back to automatic
+        if self.pinned_source:
+            return by_id[self.pinned_source]
+        playing = [s for s in sessions if is_playing(s)]
+        current = by_id.get(self._auto_source)
+        if current is not None and (is_playing(current) or not playing):
+            return current
+        chosen = None
+        if playing:
+            windows_current = self.manager.get_current_session()
+            chosen = next((s for s in playing if windows_current and s.source_app_user_model_id == windows_current.source_app_user_model_id), playing[0])
+        elif sessions:
+            chosen = self.manager.get_current_session() or sessions[0]
+        self._auto_source = chosen.source_app_user_model_id if chosen else None
+        return chosen
 
     def _api_fresh(self) -> dict | None:
         if self.spotify.logged_in and self.api and time.monotonic() - self.api["at"] < API_POLL_SECONDS * 3:
@@ -582,6 +638,8 @@ class Bridge:
         return None
 
     def _api_volume_ok(self) -> bool:
+        if self.volume.process != "spotify":
+            return False  # the Web API controls Spotify only
         api = self._api_fresh()
         return bool(api and api["supports_volume"] and not self._api_volume_failed)
 
@@ -591,8 +649,10 @@ class Bridge:
         session = self.session = self._pick_session()
         spotify_info = {"login": self.spotify.logged_in}
         if session is None:
-            # Spotify only registers with Windows once it plays; open but silent is not the same as closed
-            return {"type": "state", "session": False, "spotify_running": spotify_process_running(), "spotify": spotify_info}
+            return {"type": "state", "session": False, "spotify": spotify_info}
+        app_id = session.source_app_user_model_id or ""
+        source_name, self.volume.process = source_info(app_id)
+        is_spotify = "spotify" in app_id.lower()
 
         props = await session.try_get_media_properties_async()
         info = session.get_playback_info()
@@ -638,9 +698,10 @@ class Bridge:
         context = None
         artist_list = None
 
-        api = self._api_fresh()
+        # the Web API only knows about Spotify; for other players its data would belong to another song
+        api = self._api_fresh() if is_spotify else None
         # if the API still lags on the previous song, ask more often (see api_poll_forever)
-        self._api_behind = bool(self.spotify.logged_in and (not api or api["name"].lower() != (props.title or "").lower()))
+        self._api_behind = bool(is_spotify and self.spotify.logged_in and (not api or api["name"].lower() != (props.title or "").lower()))
         if api and api["name"].lower() == (props.title or "").lower():
             # the API knows the real artist list, like, Smart Shuffle and where the music comes from
             artists = api["artists"] or artists
@@ -656,14 +717,17 @@ class Bridge:
 
         # while the API still lags on the previous song, keep the last context –
         # skipping within a playlist keeps it the same, so the line doesn't vanish and come back
-        if context is None and self._api_behind:
+        if context is None and self._api_behind and is_spotify:
             context = self._last_context
 
         return {
             "type": "state",
             "session": True,
             "spotify": spotify_info,
-            "app": session.source_app_user_model_id,
+            "app": app_id,
+            "source": source_name,
+            "is_spotify": is_spotify,
+            "sources": [{"id": src["id"], "name": src["name"], "playing": src["playing"]} for src in self.sources],
             "title": title,
             "artist": artists,
             "album": props.album_title,
@@ -838,6 +902,13 @@ class Bridge:
             await self._send_artist(reply, str(value))
         elif cmd == "keys":
             await reply(device_keys_message())
+        elif cmd == "source":
+            match = next((src for src in self.sources if src["id"] == str(value)), None)
+            if match:
+                self.pinned_source = match["app"]
+                log.info("Source chosen on the device: %s", match["name"])
+                self._fast_until = time.monotonic() + FAST_POLL_WINDOW
+                self._poll_wake.set()
         elif cmd == "audio_volume":
             await self.mixer.set_volume(str((value or {}).get("id", "")), int((value or {}).get("vol", 0)))
         elif cmd == "audio_mute":
@@ -1082,7 +1153,7 @@ class DeviceClient:
         urls: list[tuple[str, int]] = []
         if message.get("type") == "state":
             # the device can't draw emoji in title, artists and context
-            message = {**message, **{k: device_text(message.get(k)) for k in ("title", "artist", "album", "context") if message.get(k)}}
+            message = {**message, **{k: device_text(message.get(k)) for k in ("title", "artist", "album", "context", "source") if message.get(k)}}
             # time for the top bar: the board has no clock of its own
             message["time"] = int(time.time())
             message["tz"] = int(datetime.now().astimezone().utcoffset().total_seconds())
@@ -1439,8 +1510,8 @@ async def api_status(_request: web.Request) -> web.Response:
         "devices": [{"transport": d.transport, "firmware": d.hello.get("fw"), "knob": d.hello.get("has_knob"),
                      "width": d.hello.get("w"), "height": d.hello.get("h")} for d in bridge.devices],
         "spotify": {"login": bridge.spotify.logged_in, "client_id": bridge.spotify.client_id, "name": name,
-                    "running": bool(state.get("session") or state.get("spotify_running"))},
-        "playing": {k: state.get(k) for k in ("title", "artist", "context", "cover", "playing")} if state.get("session") else None,
+                    "running": bool(state.get("session"))},
+        "playing": {k: state.get(k) for k in ("title", "artist", "context", "cover", "playing", "source")} if state.get("session") else None,
         "keys": {"used": sum(1 for k in keys if k), "slots": len(keys)},
         "redirect_uri": REDIRECT_URI,
         "lang": i18n.current(),
